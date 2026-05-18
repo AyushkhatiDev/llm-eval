@@ -31,8 +31,6 @@ export const api = {
   runSuite: (data) =>
     request("/eval/suite", { method: "POST", body: JSON.stringify(data) }),
 
-  getTaskStatus: (taskId) => request(`/eval/status/${taskId}`),
-
   // Runs
   listRuns: () => request("/runs"),
   getRun: (runId) => request(`/runs/${runId}`),

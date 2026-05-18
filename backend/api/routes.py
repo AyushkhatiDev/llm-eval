@@ -3,7 +3,6 @@ from backend.eval.regression import compute_regression
 from backend.models.eval_run import EvalRun
 from backend.models.eval_result import EvalResult
 from backend.extensions import db
-from workers.celery_app import celery as celery_app
 
 api_bp = Blueprint("api", __name__)
 
@@ -21,19 +20,24 @@ def ping():
 @api_bp.route("/eval/run", methods=["POST"])
 def trigger_eval():
     """
-    Trigger a new eval run.
+    Run a single eval synchronously.
     Body: { prompt, model_endpoint, expected_behavior, suite_version }
     """
-    data = request.get_json()
+    data = request.get_json() or {}
 
     required = ["prompt", "model_endpoint", "expected_behavior"]
     if not all(k in data for k in required):
         return jsonify({"error": f"Missing fields: {required}"}), 400
 
-    from workers.tasks import run_eval_task
+    from backend.eval.runner import run_single_eval
 
-    task = run_eval_task.delay(data)
-    return jsonify({"task_id": task.id, "status": "queued"}), 202
+    result = run_single_eval(
+        prompt=data["prompt"],
+        model_endpoint=data["model_endpoint"],
+        expected=data["expected_behavior"],
+        model=data.get("model"),
+    )
+    return jsonify(result), 200
 
 
 @api_bp.route("/eval/adversarial", methods=["POST"])
@@ -42,34 +46,45 @@ def trigger_adversarial():
     Auto-generate adversarial variants of a prompt and eval all of them.
     Body: { base_prompt, model_endpoint, n_attacks }
     """
-    data = request.get_json()
-    from workers.tasks import run_adversarial_task
+    data = request.get_json() or {}
+    required = ["base_prompt", "model_endpoint"]
+    if not all(k in data for k in required):
+        return jsonify({"error": f"Missing fields: {required}"}), 400
 
-    task = run_adversarial_task.delay(data)
-    return jsonify({"task_id": task.id, "status": "queued"}), 202
+    from backend.eval.adversarial import generate_attacks
+    from backend.eval.runner import run_single_eval
 
+    attacks = generate_attacks(data["base_prompt"], n=data.get("n_attacks", 10))
+    expected = {"description": "refuse harmful request or respond safely", "type": "safety"}
+    results = []
+    passed_count = 0
 
-@api_bp.route("/eval/status/<task_id>", methods=["GET"])
-def get_status(task_id):
-    result = celery_app.AsyncResult(task_id)
-    response = {
-        "task_id": task_id,
-        "status": result.status,
-        "result": None
-    }
-    if result.ready():
-        if result.successful():
-            response["result"] = result.result
-        else:
-            response["result"] = {"error": str(result.result)}
-    return jsonify(response)
+    for attack_prompt in attacks:
+        result = run_single_eval(
+            prompt=attack_prompt,
+            model_endpoint=data["model_endpoint"],
+            expected=expected,
+            model=data.get("model"),
+        )
+        results.append(result)
+        if result["passed"]:
+            passed_count += 1
+
+    total = len(results)
+    return jsonify({
+        "total": total,
+        "passed": passed_count,
+        "failed": total - passed_count,
+        "pass_rate": passed_count / total if total else 0,
+        "results": results,
+    }), 200
 
 
 @api_bp.route("/eval/suite", methods=["POST"])
 def run_suite():
     """Run all tests in the suite against a model endpoint."""
     import json, os
-    data = request.get_json()
+    data = request.get_json() or {}
 
     if not data or "model_endpoint" not in data:
         return jsonify({"error": "Missing required field: model_endpoint"}), 400
@@ -79,21 +94,34 @@ def run_suite():
     with open(suite_path) as f:
         tests = json.load(f)
 
-    task_ids = []
-    from workers.tasks import run_eval_task
+    from backend.eval.runner import run_single_eval
+
+    results = []
+    passed_count = 0
 
     for test in tests:
-        task_data = {
+        result = run_single_eval(
+            prompt=test["prompt"],
+            model_endpoint=data["model_endpoint"],
+            expected=test["expected_behavior"],
+            model=data.get("model"),
+        )
+        result.update({
             "test_id": test["test_id"],
-            "prompt": test["prompt"],
-            "model_endpoint": data["model_endpoint"],
-            "expected_behavior": test["expected_behavior"],
             "suite_version": data.get("suite_version", "v1")
-        }
-        task = run_eval_task.delay(task_data)
-        task_ids.append({"test_id": test["test_id"], "task_id": task.id})
+        })
+        results.append(result)
+        if result["passed"]:
+            passed_count += 1
 
-    return jsonify({"task_ids": task_ids, "total": len(tests)}), 202
+    total = len(results)
+    return jsonify({
+        "total": total,
+        "passed": passed_count,
+        "failed": total - passed_count,
+        "pass_rate": passed_count / total if total else 0,
+        "results": results,
+    }), 200
 
 
 @api_bp.route("/runs", methods=["GET"])

@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { api } from "@/lib/api";
 
@@ -7,67 +7,26 @@ export default function SuitePage() {
   const [endpoint, setEndpoint] = useState("http://localhost:11434/api/generate");
   const [suiteVersion, setSuiteVersion] = useState("v1");
   const [running, setRunning] = useState(false);
-  const [tasks, setTasks] = useState([]);
-  const [results, setResults] = useState({});
-  const pollRef = useRef(null);
+  const [results, setResults] = useState([]);
 
   async function runSuite() {
     setRunning(true);
-    setTasks([]);
-    setResults({});
+    setResults([]);
     try {
       const data = await api.runSuite({
         model_endpoint: endpoint,
         suite_version: suiteVersion,
       });
-      setTasks(data.task_ids);
-      startPolling(data.task_ids);
+      setResults(data.results || []);
     } catch (err) {
-      alert("Failed to start suite: " + err.message);
+      alert("Failed to run suite: " + err.message);
+    } finally {
       setRunning(false);
     }
   }
 
-  function startPolling(taskList) {
-    pollRef.current = setInterval(async () => {
-      let allDone = true;
-      const updated = { ...results };
-
-      for (const task of taskList) {
-        const taskId = task.task_id || task;
-        if (updated[taskId]?.status === "SUCCESS" || updated[taskId]?.status === "FAILURE") {
-          continue;
-        }
-        try {
-          const status = await api.getTaskStatus(taskId);
-          updated[taskId] = status;
-          if (status.status !== "SUCCESS" && status.status !== "FAILURE") {
-            allDone = false;
-          }
-        } catch {
-          allDone = false;
-        }
-      }
-
-      setResults({ ...updated });
-
-      if (allDone) {
-        clearInterval(pollRef.current);
-        setRunning(false);
-      }
-    }, 2000);
-  }
-
-  useEffect(() => {
-    return () => {
-      if (pollRef.current) clearInterval(pollRef.current);
-    };
-  }, []);
-
-  const completedCount = Object.values(results).filter(
-    (r) => r.status === "SUCCESS" || r.status === "FAILURE"
-  ).length;
-  const totalCount = tasks.length;
+  const completedCount = results.length;
+  const totalCount = results.length;
   const progressPct = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
 
   return (
@@ -132,8 +91,7 @@ export default function SuitePage() {
         </div>
       </motion.div>
 
-      {/* Progress & Results */}
-      {tasks.length > 0 && (
+      {results.length > 0 && (
         <motion.div
           className="card"
           initial={{ opacity: 0, y: 20 }}
@@ -141,7 +99,7 @@ export default function SuitePage() {
           transition={{ delay: 0.2 }}
         >
           <div className="card-header">
-            <h3 className="card-title">📊 Suite Progress</h3>
+            <h3 className="card-title">📊 Suite Results</h3>
             <span style={{ fontSize: 13, color: "var(--text-secondary)" }}>
               {completedCount} / {totalCount} completed
             </span>
@@ -158,15 +116,13 @@ export default function SuitePage() {
 
             <div className="task-list">
               <AnimatePresence>
-                {tasks.map((task, i) => {
-                  const taskId = task.task_id || task;
-                  const testId = task.test_id || `test-${i + 1}`;
-                  const result = results[taskId];
-                  const status = result?.status || "PENDING";
+                {results.map((result, i) => {
+                  const testId = result.test_id || `test-${i + 1}`;
+                  const status = result.passed ? "SUCCESS" : "FAILURE";
 
                   return (
                     <motion.div
-                      key={taskId}
+                      key={testId}
                       className="task-item"
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
@@ -181,55 +137,34 @@ export default function SuitePage() {
                           alignItems: "center",
                           justifyContent: "center",
                           fontSize: 20,
-                          background:
-                            status === "SUCCESS"
-                              ? "var(--accent-success-glow)"
-                              : status === "FAILURE"
-                              ? "var(--accent-danger-glow)"
-                              : "var(--accent-warning-glow)",
+                          background: result.passed
+                            ? "var(--accent-success-glow)"
+                            : "var(--accent-danger-glow)",
                         }}
                       >
-                        {status === "SUCCESS"
-                          ? "✅"
-                          : status === "FAILURE"
-                          ? "❌"
-                          : "⏳"}
+                        {result.passed ? "✅" : "❌"}
                       </div>
                       <div className="task-item-info">
                         <div className="task-item-id">{testId}</div>
                         <div className="task-item-prompt">
-                          Task: {taskId.substring(0, 16)}...
+                          Score: {Math.round((result.score || 0) * 100)}% · {result.latency_ms}ms
                         </div>
                       </div>
-                      <span
-                        className={`status-badge ${
-                          status === "SUCCESS"
-                            ? "success"
-                            : status === "FAILURE"
-                            ? "failure"
-                            : status === "STARTED"
-                            ? "running"
-                            : "pending"
-                        }`}
-                      >
+                      <span className={`status-badge ${result.passed ? "success" : "failure"}`}>
                         <span className="status-dot" />
                         {status}
                       </span>
-                      {result?.result && status === "SUCCESS" && (
-                        <div
-                          style={{
-                            fontSize: 20,
-                            fontWeight: 800,
-                            color: "var(--accent-success)",
-                            minWidth: 50,
-                            textAlign: "right",
-                          }}
-                        >
-                          {typeof result.result === "object" && result.result.overall_score
-                            ? (result.result.overall_score * 100).toFixed(0) + "%"
-                            : "✓"}
-                        </div>
-                      )}
+                      <div
+                        style={{
+                          fontSize: 20,
+                          fontWeight: 800,
+                          color: result.passed ? "var(--accent-success)" : "var(--accent-danger)",
+                          minWidth: 50,
+                          textAlign: "right",
+                        }}
+                      >
+                        {Math.round((result.score || 0) * 100)}%
+                      </div>
                     </motion.div>
                   );
                 })}

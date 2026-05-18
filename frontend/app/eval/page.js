@@ -13,12 +13,11 @@ export default function EvalPage() {
     keywords: "",
   });
   const [submitting, setSubmitting] = useState(false);
-  const [taskResult, setTaskResult] = useState(null);
-  const [polling, setPolling] = useState(false);
+  const [evalResult, setEvalResult] = useState(null);
 
   async function submitEval() {
     setSubmitting(true);
-    setTaskResult(null);
+    setEvalResult(null);
     try {
       const payload = {
         prompt: form.prompt,
@@ -31,18 +30,7 @@ export default function EvalPage() {
         },
       };
       const data = await api.triggerEval(payload);
-      setTaskResult({ task_id: data.task_id, status: "QUEUED" });
-      const interval = setInterval(async () => {
-        try {
-          const status = await api.getTaskStatus(data.task_id);
-          setTaskResult(status);
-          if (status.status === "SUCCESS" || status.status === "FAILURE") {
-            clearInterval(interval);
-            setPolling(false);
-          }
-        } catch { clearInterval(interval); setPolling(false); }
-      }, 2000);
-      setPolling(true);
+      setEvalResult(data);
     } catch (err) {
       alert("Failed: " + err.message);
     } finally {
@@ -98,28 +86,22 @@ export default function EvalPage() {
         <motion.div className="card" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}>
           <div className="card-header">
             <h3 className="card-title">📋 Result</h3>
-            {polling && <span className="live-indicator"><span className="live-dot"></span>Polling...</span>}
+            {submitting && <span className="live-indicator"><span className="live-dot"></span>Running...</span>}
           </div>
           <div className="card-body">
-            {!taskResult ? (
+            {!evalResult ? (
               <div className="empty-state"><div className="empty-state-icon">⚡</div><h3>No evaluation submitted</h3><p>Fill the form and click Run Evaluation.</p></div>
             ) : (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
                 <div style={{ marginBottom: 16 }}>
-                  <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 4 }}>Task ID</div>
-                  <div style={{ fontFamily: "monospace", fontSize: 13, color: "var(--text-accent)" }}>{taskResult.task_id}</div>
-                </div>
-                <div style={{ marginBottom: 16 }}>
                   <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 8 }}>Status</div>
-                  <span className={`status-badge ${taskResult.status === "SUCCESS" ? "success" : taskResult.status === "FAILURE" ? "failure" : "pending"}`} style={{ fontSize: 14, padding: "6px 16px" }}>
-                    <span className="status-dot" />{taskResult.status}
+                  <span className={`status-badge ${evalResult.passed ? "success" : "failure"}`} style={{ fontSize: 14, padding: "6px 16px" }}>
+                    <span className="status-dot" />{evalResult.passed ? "PASSED" : "FAILED"}
                   </span>
                 </div>
-                {taskResult.result && (
-                  <pre style={{ background: "var(--bg-tertiary)", padding: 16, borderRadius: 8, fontSize: 13, lineHeight: 1.6, overflow: "auto", maxHeight: 400, color: "var(--text-secondary)", border: "1px solid var(--bg-glass-border)" }}>
-                    {JSON.stringify(taskResult.result, null, 2)}
-                  </pre>
-                )}
+                <pre style={{ background: "var(--bg-tertiary)", padding: 16, borderRadius: 8, fontSize: 13, lineHeight: 1.6, overflow: "auto", maxHeight: 400, color: "var(--text-secondary)", border: "1px solid var(--bg-glass-border)" }}>
+                  {JSON.stringify(evalResult, null, 2)}
+                </pre>
               </motion.div>
             )}
           </div>

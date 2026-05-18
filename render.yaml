@@ -13,18 +13,3 @@ services:
         sync: false
       - key: PYTHONPATH
         value: .
-
-  - type: worker
-    name: llm-eval-worker
-    runtime: python
-    buildCommand: pip install -r requirements.txt
-    startCommand: celery -A workers.celery_app.celery worker --loglevel=info
-    envVars:
-      - key: DATABASE_URL
-        sync: false
-      - key: REDIS_URL
-        sync: false
-      - key: GROQ_API_KEY
-        sync: false
-      - key: PYTHONPATH
-        value: .

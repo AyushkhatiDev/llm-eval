@@ -7,20 +7,21 @@ function AnimatedCounter({ value, duration = 1.5 }) {
   const numVal = typeof value === "number" ? value : parseFloat(value) || 0;
 
   useEffect(() => {
-    let start = 0;
+    const start = 0;
     const end = numVal;
-    if (start === end) { setDisplay(end); return; }
 
     const startTime = performance.now();
+    let frameId;
     const step = (currentTime) => {
       const elapsed = (currentTime - startTime) / (duration * 1000);
       const progress = Math.min(elapsed, 1);
       const eased = 1 - Math.pow(1 - progress, 3);
       const current = start + (end - start) * eased;
       setDisplay(current);
-      if (progress < 1) requestAnimationFrame(step);
+      if (progress < 1) frameId = requestAnimationFrame(step);
     };
-    requestAnimationFrame(step);
+    frameId = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(frameId);
   }, [numVal, duration]);
 
   const isPercent = typeof value === "string" && value.includes("%");
