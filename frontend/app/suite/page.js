@@ -24,6 +24,7 @@ export default function SuitePage() {
   const [initialSuiteState] = useState(getSavedSuiteState);
   const [endpoint, setEndpoint] = useState(initialSuiteState.endpoint || "groq");
   const [suiteVersion, setSuiteVersion] = useState(initialSuiteState.suiteVersion || "v1");
+  const [judgeMode, setJudgeMode] = useState(initialSuiteState.judgeMode || "fast");
   const [running, setRunning] = useState(false);
   const [results, setResults] = useState(initialSuiteState.results || []);
   const [totalTests, setTotalTests] = useState(initialSuiteState.totalTests || 0);
@@ -33,6 +34,7 @@ export default function SuitePage() {
     localStorage.setItem(SUITE_STATE_KEY, JSON.stringify({
       endpoint,
       suiteVersion,
+      judgeMode,
       runId,
       totalTests,
       results,
@@ -51,7 +53,7 @@ export default function SuitePage() {
       const tests = suite.tests || [];
       const run = await api.createRun({
         model_endpoint: endpoint,
-        suite_version: suiteVersion,
+        suite_version: `${suiteVersion}-${judgeMode}`,
       });
 
       setRunId(run.id);
@@ -64,7 +66,10 @@ export default function SuitePage() {
 
       const completed = [];
       for (const test of tests) {
-        const expectedBehavior = { ...test.expected_behavior, skip_llm_judge: true };
+        const expectedBehavior = {
+          ...test.expected_behavior,
+          skip_llm_judge: judgeMode === "fast",
+        };
         const result = await api.triggerEval({
           prompt: test.prompt,
           model_endpoint: endpoint,
@@ -72,13 +77,13 @@ export default function SuitePage() {
           model: endpoint === "groq" ? "llama-3.1-8b-instant" : undefined,
           run_id: run.id,
           test_id: test.test_id,
-          suite_version: suiteVersion,
+          suite_version: `${suiteVersion}-${judgeMode}`,
         });
 
         const normalized = {
           ...result,
           test_id: test.test_id,
-          suite_version: suiteVersion,
+          suite_version: `${suiteVersion}-${judgeMode}`,
         };
         completed.push(normalized);
         setResults([...completed]);
@@ -89,7 +94,7 @@ export default function SuitePage() {
         });
 
         if (endpoint.toLowerCase().includes("groq") && completed.length < tests.length) {
-          await delay(2300);
+          await delay(judgeMode === "smart" ? 4500 : 2300);
         }
       }
     } catch (err) {
@@ -145,6 +150,18 @@ export default function SuitePage() {
                 onChange={(e) => setSuiteVersion(e.target.value)}
                 placeholder="v1"
               />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Scoring Mode</label>
+              <select
+                className="form-select"
+                value={judgeMode}
+                onChange={(e) => setJudgeMode(e.target.value)}
+                disabled={running}
+              >
+                <option value="fast">Fast - rules only</option>
+                <option value="smart">Smart - LLM judge when uncertain</option>
+              </select>
             </div>
           </div>
           <button
