@@ -84,6 +84,8 @@ def trigger_adversarial():
 def run_suite():
     """Run all tests in the suite against a model endpoint."""
     import json, os
+    from concurrent.futures import ThreadPoolExecutor
+
     data = request.get_json() or {}
 
     suite_path = os.path.join(os.path.dirname(__file__), "../eval/test_suite.json")
@@ -93,23 +95,26 @@ def run_suite():
 
     from backend.eval.runner import run_single_eval
 
-    results = []
-    passed_count = 0
+    model_endpoint = data.get("model_endpoint", "groq")
+    model = data.get("model")
+    suite_version = data.get("suite_version", "v1")
 
-    for test in tests:
+    def run_test(test):
         result = run_single_eval(
             prompt=test["prompt"],
-            model_endpoint=data.get("model_endpoint", "groq"),
+            model_endpoint=model_endpoint,
             expected=test["expected_behavior"],
-            model=data.get("model"),
+            model=model,
             test_id=test["test_id"],
         )
-        result.update({
-            "suite_version": data.get("suite_version", "v1")
-        })
-        results.append(result)
-        if result["passed"]:
-            passed_count += 1
+        result["suite_version"] = suite_version
+        return result
+
+    max_workers = int(os.getenv("SUITE_CONCURRENCY", "4"))
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        results = list(executor.map(run_test, tests))
+
+    passed_count = sum(1 for result in results if result["passed"])
 
     total = len(results)
     return jsonify({

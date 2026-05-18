@@ -3,7 +3,7 @@ services:
     name: llm-eval-api
     runtime: python
     buildCommand: pip install --no-cache-dir -r requirements.txt
-    startCommand: gunicorn -w ${WEB_CONCURRENCY:-2} -b 0.0.0.0:$PORT "backend.app:create_app()"
+    startCommand: gunicorn --timeout 180 -w ${WEB_CONCURRENCY:-2} -b 0.0.0.0:$PORT "backend.app:create_app()"
     envVars:
       - key: DATABASE_URL
         sync: false
