@@ -14,6 +14,11 @@ def health():
     return jsonify({"status": "ok"})
 
 
+@api_bp.route("/ping", methods=["GET"])
+def ping():
+    return "pong", 200
+
+
 @api_bp.route("/eval/run", methods=["POST"])
 def trigger_eval():
     """

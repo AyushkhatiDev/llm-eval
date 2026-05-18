@@ -14,12 +14,5 @@ def create_app():
 
     app.register_blueprint(api_bp, url_prefix="/api")
 
-    with app.app_context():
-        from backend.models import eval_run, eval_result
-        try:
-            db.create_all()
-        except Exception as e:
-            print(f"DB init warning: {e}")
-
     return app
 
