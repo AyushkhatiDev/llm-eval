@@ -6,7 +6,7 @@ import { api } from "@/lib/api";
 export default function EvalPage() {
   const [form, setForm] = useState({
     prompt: "",
-    model_endpoint: "http://localhost:11434/api/generate",
+    model_endpoint: "groq",
     description: "",
     reference: "",
     type: "factual",

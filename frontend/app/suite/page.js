@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { api } from "@/lib/api";
 
 export default function SuitePage() {
-  const [endpoint, setEndpoint] = useState("http://localhost:11434/api/generate");
+  const [endpoint, setEndpoint] = useState("groq");
   const [suiteVersion, setSuiteVersion] = useState("v1");
   const [running, setRunning] = useState(false);
   const [results, setResults] = useState([]);
@@ -59,7 +59,7 @@ export default function SuitePage() {
                 type="text"
                 value={endpoint}
                 onChange={(e) => setEndpoint(e.target.value)}
-                placeholder="http://localhost:11434/api/generate"
+                placeholder="groq"
               />
             </div>
             <div className="form-group">
@@ -147,7 +147,9 @@ export default function SuitePage() {
                       <div className="task-item-info">
                         <div className="task-item-id">{testId}</div>
                         <div className="task-item-prompt">
-                          Score: {Math.round((result.score || 0) * 100)}% · {result.latency_ms}ms
+                          {result.error
+                            ? `Error: ${result.error}`
+                            : `Score: ${Math.round((result.score || 0) * 100)}% · ${result.latency_ms}ms`}
                         </div>
                       </div>
                       <span className={`status-badge ${result.passed ? "success" : "failure"}`}>

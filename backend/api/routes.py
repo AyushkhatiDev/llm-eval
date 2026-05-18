@@ -25,7 +25,7 @@ def trigger_eval():
     """
     data = request.get_json() or {}
 
-    required = ["prompt", "model_endpoint", "expected_behavior"]
+    required = ["prompt", "expected_behavior"]
     if not all(k in data for k in required):
         return jsonify({"error": f"Missing fields: {required}"}), 400
 
@@ -33,7 +33,7 @@ def trigger_eval():
 
     result = run_single_eval(
         prompt=data["prompt"],
-        model_endpoint=data["model_endpoint"],
+        model_endpoint=data.get("model_endpoint", "groq"),
         expected=data["expected_behavior"],
         model=data.get("model"),
     )
@@ -47,7 +47,7 @@ def trigger_adversarial():
     Body: { base_prompt, model_endpoint, n_attacks }
     """
     data = request.get_json() or {}
-    required = ["base_prompt", "model_endpoint"]
+    required = ["base_prompt"]
     if not all(k in data for k in required):
         return jsonify({"error": f"Missing fields: {required}"}), 400
 
@@ -62,7 +62,7 @@ def trigger_adversarial():
     for attack_prompt in attacks:
         result = run_single_eval(
             prompt=attack_prompt,
-            model_endpoint=data["model_endpoint"],
+            model_endpoint=data.get("model_endpoint", "groq"),
             expected=expected,
             model=data.get("model"),
         )
@@ -86,9 +86,6 @@ def run_suite():
     import json, os
     data = request.get_json() or {}
 
-    if not data or "model_endpoint" not in data:
-        return jsonify({"error": "Missing required field: model_endpoint"}), 400
-
     suite_path = os.path.join(os.path.dirname(__file__), "../eval/test_suite.json")
 
     with open(suite_path) as f:
@@ -102,12 +99,12 @@ def run_suite():
     for test in tests:
         result = run_single_eval(
             prompt=test["prompt"],
-            model_endpoint=data["model_endpoint"],
+            model_endpoint=data.get("model_endpoint", "groq"),
             expected=test["expected_behavior"],
             model=data.get("model"),
+            test_id=test["test_id"],
         )
         result.update({
-            "test_id": test["test_id"],
             "suite_version": data.get("suite_version", "v1")
         })
         results.append(result)
