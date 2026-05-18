@@ -16,6 +16,6 @@ def create_app():
 
     @app.route("/")
     def root():
-        return {"status": "ok", "service": "llm-eval-api"}
+        return {"status": "ok", "service": "llm-eval-api", "version": "groq-target-v2"}
 
     return app
