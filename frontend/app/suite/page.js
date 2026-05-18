@@ -4,23 +4,63 @@ import { motion, AnimatePresence } from "framer-motion";
 import { api } from "@/lib/api";
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const SUITE_STATE_KEY = "llm-eval-suite-state";
+
+function getSavedSuiteState() {
+  if (typeof window === "undefined") return {};
+
+  const saved = localStorage.getItem(SUITE_STATE_KEY);
+  if (!saved) return {};
+
+  try {
+    return JSON.parse(saved);
+  } catch {
+    localStorage.removeItem(SUITE_STATE_KEY);
+    return {};
+  }
+}
 
 export default function SuitePage() {
-  const [endpoint, setEndpoint] = useState("groq");
-  const [suiteVersion, setSuiteVersion] = useState("v1");
+  const [initialSuiteState] = useState(getSavedSuiteState);
+  const [endpoint, setEndpoint] = useState(initialSuiteState.endpoint || "groq");
+  const [suiteVersion, setSuiteVersion] = useState(initialSuiteState.suiteVersion || "v1");
   const [running, setRunning] = useState(false);
-  const [results, setResults] = useState([]);
-  const [totalTests, setTotalTests] = useState(0);
+  const [results, setResults] = useState(initialSuiteState.results || []);
+  const [totalTests, setTotalTests] = useState(initialSuiteState.totalTests || 0);
+  const [runId, setRunId] = useState(initialSuiteState.runId || null);
+
+  function saveSuiteState(nextState) {
+    localStorage.setItem(SUITE_STATE_KEY, JSON.stringify({
+      endpoint,
+      suiteVersion,
+      runId,
+      totalTests,
+      results,
+      ...nextState,
+    }));
+  }
 
   async function runSuite() {
     setRunning(true);
     setResults([]);
     setTotalTests(0);
+    setRunId(null);
 
     try {
       const suite = await api.getSuiteTests();
       const tests = suite.tests || [];
+      const run = await api.createRun({
+        model_endpoint: endpoint,
+        suite_version: suiteVersion,
+      });
+
+      setRunId(run.id);
       setTotalTests(tests.length);
+      saveSuiteState({
+        runId: run.id,
+        totalTests: tests.length,
+        results: [],
+      });
 
       const completed = [];
       for (const test of tests) {
@@ -30,6 +70,9 @@ export default function SuitePage() {
           model_endpoint: endpoint,
           expected_behavior: expectedBehavior,
           model: endpoint === "groq" ? "llama-3.1-8b-instant" : undefined,
+          run_id: run.id,
+          test_id: test.test_id,
+          suite_version: suiteVersion,
         });
 
         const normalized = {
@@ -39,6 +82,11 @@ export default function SuitePage() {
         };
         completed.push(normalized);
         setResults([...completed]);
+        saveSuiteState({
+          runId: run.id,
+          totalTests: tests.length,
+          results: completed,
+        });
 
         if (endpoint.toLowerCase().includes("groq") && completed.length < tests.length) {
           await delay(2300);
@@ -127,7 +175,7 @@ export default function SuitePage() {
           <div className="card-header">
             <h3 className="card-title">📊 Suite Results</h3>
             <span style={{ fontSize: 13, color: "var(--text-secondary)" }}>
-              {completedCount} / {totalCount} completed
+              {completedCount} / {totalCount} completed{runId ? ` · ${runId.substring(0, 8)}...` : ""}
             </span>
           </div>
           <div className="card-body">

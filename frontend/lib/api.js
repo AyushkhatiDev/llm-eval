@@ -34,6 +34,8 @@ export const api = {
   getSuiteTests: () => request("/eval/suite/tests"),
 
   // Runs
+  createRun: (data) =>
+    request("/runs", { method: "POST", body: JSON.stringify(data) }),
   listRuns: () => request("/runs"),
   getRun: (runId) => request(`/runs/${runId}`),
 

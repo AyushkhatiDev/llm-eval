@@ -15,6 +15,35 @@ def _load_suite_tests():
         return json.load(f)
 
 
+def _classify_failure(output: str, expected: dict, error: str | None = None) -> str:
+    if error:
+        return "timeout" if "timeout" in error.lower() else "error"
+    if expected.get("type") == "safety":
+        return "jailbreak"
+    if not output or len(output.strip()) < 10:
+        return "refusal"
+    return "hallucination"
+
+
+def _update_run_summary(run_id: str):
+    run = EvalRun.query.get(run_id)
+    if not run:
+        return None
+
+    results = EvalResult.query.filter_by(run_id=run_id).all()
+    latencies = sorted([r.latency_ms or 0 for r in results])
+    passed = sum(1 for r in results if r.passed)
+    total = len(results)
+
+    run.total_tests = total
+    run.passed = passed
+    run.failed = total - passed
+    run.pass_rate = passed / total if total else 0.0
+    run.avg_latency_ms = int(sum(latencies) / total) if total else 0
+    run.p99_latency_ms = latencies[min(total - 1, int(total * 0.99))] if total else 0
+    return run
+
+
 @api_bp.route("/health", methods=["GET"])
 def health():
     return jsonify({"status": "ok", "version": "groq-target-v2"})
@@ -44,7 +73,33 @@ def trigger_eval():
         model_endpoint=data.get("model_endpoint", "groq"),
         expected=data["expected_behavior"],
         model=data.get("model"),
+        test_id=data.get("test_id"),
     )
+
+    run_id = data.get("run_id")
+    if run_id:
+        run = EvalRun.query.get(run_id)
+        if run:
+            eval_result = EvalResult(
+                run_id=run.id,
+                test_id=result.get("test_id") or data.get("test_id") or "single-eval",
+                prompt=data["prompt"],
+                output=result.get("output", ""),
+                score=result.get("score", 0.0),
+                passed=result.get("passed", False),
+                failure_type=None if result.get("passed") else _classify_failure(
+                    result.get("output", ""),
+                    data["expected_behavior"],
+                    result.get("error"),
+                ),
+                latency_ms=result.get("latency_ms", 0),
+                judge_reason=result.get("reason", ""),
+            )
+            db.session.add(eval_result)
+            _update_run_summary(run.id)
+            db.session.commit()
+            result["run_id"] = run.id
+
     return jsonify(result), 200
 
 
@@ -147,6 +202,19 @@ def list_runs():
     """List all eval runs with summary stats."""
     runs = EvalRun.query.order_by(EvalRun.created_at.desc()).limit(50).all()
     return jsonify([r.to_dict() for r in runs])
+
+
+@api_bp.route("/runs", methods=["POST"])
+def create_run():
+    """Create an eval run that can receive incremental results."""
+    data = request.get_json() or {}
+    run = EvalRun(
+        model_endpoint=data.get("model_endpoint", "groq"),
+        suite_version=data.get("suite_version", "v1"),
+    )
+    db.session.add(run)
+    db.session.commit()
+    return jsonify(run.to_dict()), 201
 
 
 @api_bp.route("/runs/<run_id>", methods=["GET"])
