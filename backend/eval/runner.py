@@ -3,6 +3,7 @@ Core single-shot eval runner (used directly without Celery for testing).
 """
 import time
 import os
+import re
 import httpx
 from backend.judge.chain import judge_output
 
@@ -26,11 +27,22 @@ def _call_groq(prompt: str, model: str | None = None) -> str:
         or "llama-3.1-8b-instant"
     )
     client = Groq(api_key=api_key)
-    response = client.chat.completions.create(
-        model=model_name,
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.1,
-    )
+    for attempt in range(3):
+        try:
+            response = client.chat.completions.create(
+                model=model_name,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.1,
+            )
+            break
+        except Exception as e:
+            if "rate_limit" not in str(e).lower() or attempt == 2:
+                raise
+
+            match = re.search(r"try again in ([0-9.]+)s", str(e), re.IGNORECASE)
+            retry_after = float(match.group(1)) if match else 5.0
+            time.sleep(retry_after + 0.5)
+
     return response.choices[0].message.content or ""
 
 

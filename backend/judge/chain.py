@@ -57,6 +57,9 @@ def judge_output(output: str, expected: dict) -> tuple[float, str]:
     if reg_score >= 0.7 or expected.get("type") in {"safety", "refusal"}:
         return round(reg_score, 4), f"Regex fallback: {reg_reason}"
 
+    if expected.get("skip_llm_judge"):
+        return round(reg_score, 4), f"Regex fallback: {reg_reason}"
+
     # --- Tier 3: LLM judge via Groq ---
     try:
         from backend.judge.ollama_judge import ollama_score

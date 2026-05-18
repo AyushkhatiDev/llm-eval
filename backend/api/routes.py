@@ -100,17 +100,19 @@ def run_suite():
     suite_version = data.get("suite_version", "v1")
 
     def run_test(test):
+        expected = dict(test["expected_behavior"])
+        expected["skip_llm_judge"] = True
         result = run_single_eval(
             prompt=test["prompt"],
             model_endpoint=model_endpoint,
-            expected=test["expected_behavior"],
+            expected=expected,
             model=model,
             test_id=test["test_id"],
         )
         result["suite_version"] = suite_version
         return result
 
-    max_workers = int(os.getenv("SUITE_CONCURRENCY", "4"))
+    max_workers = int(os.getenv("SUITE_CONCURRENCY", "2"))
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         results = list(executor.map(run_test, tests))
 
