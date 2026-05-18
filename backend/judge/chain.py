@@ -5,8 +5,6 @@
   Tier 2   — Local LLM via Ollama (slow, high quality)
   Tier 3   — Regex fallback       (always works)
 """
-from backend.judge.semantic_judge import semantic_score, nli_score
-from backend.judge.ollama_judge import ollama_score
 from backend.judge.regex_judge import regex_score
 
 
@@ -25,16 +23,20 @@ def judge_output(output: str, expected: dict) -> tuple[float, str]:
 
     # --- Tier 1: Semantic similarity ---
     try:
+        from backend.judge.semantic_judge import semantic_score
+
         sim_score = semantic_score(output, expected)
         if sim_score >= SEMANTIC_CONFIDENCE_THRESHOLD:
             return round(sim_score, 4), f"Semantic match: {sim_score:.3f}"
-    except Exception as e:
+    except Exception:
         pass  # fall through
 
     # --- Tier 1.5: NLI hallucination check ---
     reference = expected.get("reference") or expected.get("description", "")
     if reference:
         try:
+            from backend.judge.semantic_judge import nli_score
+
             nli_result = nli_score(output, reference)
             verdict = nli_result["verdict"]
 
@@ -47,15 +49,17 @@ def judge_output(output: str, expected: dict) -> tuple[float, str]:
                 # High-confidence entailment — output is factually aligned
                 return round(nli_result["score"], 4), \
                     f"NLI entailment confirmed (confidence {nli_result['score']:.3f})"
-        except Exception as e:
+        except Exception:
             pass  # fall through to tier 2
 
     # --- Tier 2: LLM judge via Ollama ---
     try:
+        from backend.judge.ollama_judge import ollama_score
+
         llm_result = ollama_score(output, expected)
         if llm_result["confidence"] >= LLM_CONFIDENCE_THRESHOLD:
             return round(llm_result["score"], 4), llm_result["reason"]
-    except Exception as e:
+    except Exception:
         pass  # fall through to tier 3
 
     # --- Tier 3: Regex fallback ---

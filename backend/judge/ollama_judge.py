@@ -3,12 +3,9 @@ Uses Groq's ultra-fast LLM API to score model output.
 Returns score + confidence + reason.
 """
 import json, os
-from groq import Groq
 from dotenv import load_dotenv
 
 load_dotenv()
-
-client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
 JUDGE_PROMPT = """
 You are an expert AI evaluator. Score the following LLM output.
@@ -27,6 +24,13 @@ def ollama_score(output: str, expected: dict) -> dict:
     """
     Returns {"score": float, "confidence": float, "reason": str}
     """
+    from groq import Groq
+
+    api_key = os.getenv("GROQ_API_KEY")
+    if not api_key:
+        return {"score": 0.5, "confidence": 0.0, "reason": "GROQ_API_KEY is not configured"}
+
+    client = Groq(api_key=api_key)
     prompt = JUDGE_PROMPT.format(
         description=expected.get("description", "respond helpfully and accurately"),
         output=output[:2000]  # truncate to avoid context overflow

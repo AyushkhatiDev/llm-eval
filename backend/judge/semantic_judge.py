@@ -5,8 +5,6 @@ the model output and the expected reference text.
 Also includes Natural Language Inference (NLI) via facebook/bart-large-mnli
 to detect entailment, contradiction, or neutrality — enabling hallucination scoring.
 """
-from sentence_transformers import SentenceTransformer, util
-from transformers import pipeline
 
 _model = None
 
@@ -14,6 +12,8 @@ _model = None
 def _get_model():
     global _model
     if _model is None:
+        from sentence_transformers import SentenceTransformer
+
         _model = SentenceTransformer("all-MiniLM-L6-v2")
     return _model
 
@@ -28,6 +28,8 @@ def semantic_score(output: str, expected: dict) -> float:
         return 0.5  # no reference to compare against
 
     model = _get_model()
+    from sentence_transformers import util
+
     emb_output = model.encode(output, convert_to_tensor=True)
     emb_ref = model.encode(reference, convert_to_tensor=True)
     similarity = util.cos_sim(emb_output, emb_ref).item()
@@ -42,6 +44,8 @@ _nli_model = None
 def _get_nli():
     global _nli_model
     if _nli_model is None:
+        from transformers import pipeline
+
         _nli_model = pipeline(
             "text-classification",
             model="facebook/bart-large-mnli"

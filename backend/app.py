@@ -14,5 +14,8 @@ def create_app():
 
     app.register_blueprint(api_bp, url_prefix="/api")
 
-    return app
+    @app.route("/")
+    def root():
+        return {"status": "ok", "service": "llm-eval-api"}
 
+    return app
