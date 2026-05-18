@@ -4,13 +4,28 @@ Core single-shot eval runner (used directly without Celery for testing).
 import time
 import os
 import re
+import threading
 import httpx
 from backend.judge.chain import judge_output
+
+_groq_lock = threading.Lock()
+_last_groq_call_at = 0.0
 
 
 def _is_groq_endpoint(model_endpoint: str | None) -> bool:
     endpoint = (model_endpoint or "groq").strip().lower()
     return endpoint in {"", "groq"} or "groq" in endpoint
+
+
+def _throttle_groq_call():
+    global _last_groq_call_at
+
+    min_interval = float(os.getenv("GROQ_MIN_INTERVAL_SECONDS", "2.2"))
+    with _groq_lock:
+        elapsed = time.monotonic() - _last_groq_call_at
+        if elapsed < min_interval:
+            time.sleep(min_interval - elapsed)
+        _last_groq_call_at = time.monotonic()
 
 
 def _call_groq(prompt: str, model: str | None = None) -> str:
@@ -27,8 +42,9 @@ def _call_groq(prompt: str, model: str | None = None) -> str:
         or "llama-3.1-8b-instant"
     )
     client = Groq(api_key=api_key)
-    for attempt in range(3):
+    for attempt in range(5):
         try:
+            _throttle_groq_call()
             response = client.chat.completions.create(
                 model=model_name,
                 messages=[{"role": "user", "content": prompt}],
@@ -36,12 +52,12 @@ def _call_groq(prompt: str, model: str | None = None) -> str:
             )
             break
         except Exception as e:
-            if "rate_limit" not in str(e).lower() or attempt == 2:
+            if "rate_limit" not in str(e).lower() or attempt == 4:
                 raise
 
             match = re.search(r"try again in ([0-9.]+)s", str(e), re.IGNORECASE)
             retry_after = float(match.group(1)) if match else 5.0
-            time.sleep(retry_after + 0.5)
+            time.sleep(retry_after + 2.0)
 
     return response.choices[0].message.content or ""
 

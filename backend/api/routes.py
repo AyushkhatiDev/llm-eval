@@ -112,7 +112,7 @@ def run_suite():
         result["suite_version"] = suite_version
         return result
 
-    max_workers = int(os.getenv("SUITE_CONCURRENCY", "2"))
+    max_workers = int(os.getenv("SUITE_CONCURRENCY", "1"))
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         results = list(executor.map(run_test, tests))
 
