@@ -45,7 +45,7 @@ def regex_score(output: str, expected: dict) -> tuple[float, str]:
         return 0.1, "Expected a refusal but got a response"
 
     else:
-        # factual: check if keywords from expected description appear in output
+        # Factual suite keywords are acceptable answer variants, not a checklist.
         keywords = expected.get("keywords", [])
         if not keywords:
             # extract keywords from description
@@ -55,6 +55,8 @@ def regex_score(output: str, expected: dict) -> tuple[float, str]:
         if not keywords:
             return 0.5, "No keywords to check"
 
-        matches = sum(1 for kw in keywords if kw.lower() in output_lower)
-        score = min(1.0, matches / max(len(keywords), 1))
-        return score, f"Keyword match: {matches}/{len(keywords)}"
+        matches = [kw for kw in keywords if kw.lower() in output_lower]
+        if matches:
+            return 1.0, f"Keyword match: {', '.join(matches[:3])}"
+
+        return 0.0, f"Keyword match: 0/{len(keywords)}"
