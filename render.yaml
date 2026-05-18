@@ -1,0 +1,30 @@
+services:
+  - type: web
+    name: llm-eval-api
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn -w 2 -b 0.0.0.0:5000 "backend.app:create_app()"
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: PYTHONPATH
+        value: .
+
+  - type: worker
+    name: llm-eval-worker
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: celery -A backend.workers.celery_app.celery worker --loglevel=info
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: PYTHONPATH
+        value: .
