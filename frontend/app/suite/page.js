@@ -107,6 +107,10 @@ export default function SuitePage() {
   const completedCount = results.length;
   const totalCount = totalTests || results.length;
   const progressPct = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
+  const passedCount = results.filter((result) => result.passed).length;
+  const failedCount = results.filter((result) => !result.passed).length;
+  const currentTest = running && completedCount < totalCount ? `test ${completedCount + 1}` : null;
+  const suitePassRate = completedCount > 0 ? Math.round((passedCount / completedCount) * 100) : 0;
 
   return (
     <>
@@ -130,7 +134,7 @@ export default function SuitePage() {
           <h3 className="card-title">⚙️ Configuration</h3>
         </div>
         <div className="card-body">
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+          <div className="config-grid">
             <div className="form-group">
               <label className="form-label">Model Endpoint</label>
               <input
@@ -196,6 +200,30 @@ export default function SuitePage() {
             </span>
           </div>
           <div className="card-body">
+            <div className="suite-summary-grid">
+              <div className="suite-summary-item">
+                <span className="suite-summary-label">Pass Rate</span>
+                <strong>{suitePassRate}%</strong>
+              </div>
+              <div className="suite-summary-item">
+                <span className="suite-summary-label">Passed</span>
+                <strong className="text-success">{passedCount}</strong>
+              </div>
+              <div className="suite-summary-item">
+                <span className="suite-summary-label">Failed</span>
+                <strong className="text-danger">{failedCount}</strong>
+              </div>
+              <div className="suite-summary-item">
+                <span className="suite-summary-label">Mode</span>
+                <strong>{judgeMode}</strong>
+              </div>
+            </div>
+            {currentTest && (
+              <div className="suite-current">
+                <span className="live-dot"></span>
+                Running {currentTest} of {totalCount}
+              </div>
+            )}
             <div className="suite-progress">
               <motion.div
                 className="suite-progress-fill"

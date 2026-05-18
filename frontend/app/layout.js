@@ -15,7 +15,14 @@ export default function RootLayout({ children }) {
         <div className="bg-orb bg-orb-2" />
         <div className="app-layout">
           <Sidebar />
-          <main className="main-content">{children}</main>
+          <main className="main-content">
+            <div className="mobile-brand">
+              <div className="sidebar-logo-icon">🧠</div>
+              <span className="sidebar-logo-text">LLM Eval</span>
+              <span className="sidebar-logo-badge">v1</span>
+            </div>
+            {children}
+          </main>
         </div>
       </body>
     </html>

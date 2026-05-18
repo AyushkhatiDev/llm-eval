@@ -240,6 +240,28 @@ export default function RunsPage() {
                       score={result.score || 0}
                       label="Overall Score"
                     />
+                    {(result.judge_reason || result.output || result.failure_type) && (
+                      <div className="result-card-details">
+                        {result.judge_reason && (
+                          <div>
+                            <span>Judge</span>
+                            <p>{result.judge_reason}</p>
+                          </div>
+                        )}
+                        {result.failure_type && (
+                          <div>
+                            <span>Failure</span>
+                            <p>{result.failure_type}</p>
+                          </div>
+                        )}
+                        {result.output && (
+                          <div>
+                            <span>Model Output</span>
+                            <pre>{result.output}</pre>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </motion.div>
                 ))
               ) : (
