@@ -16,7 +16,10 @@ def create_app():
 
     with app.app_context():
         from backend.models import eval_run, eval_result
-        db.create_all()
+        try:
+            db.create_all()
+        except Exception as e:
+            print(f"DB init warning: {e}")
 
     return app
 
