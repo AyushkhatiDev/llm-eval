@@ -4,7 +4,7 @@ A full-stack LLM evaluation dashboard for running factual, safety, hallucination
 
 ## Live Demo
 
-- Frontend: https://llm-eval-9xlv.vercel.app
+- Frontend: https://llm-eval-silk.vercel.app/
 - Backend health: https://llm-eval-55pg.onrender.com/api/health
 
 The deployed demo uses Groq as the default model endpoint. Render free-tier services can cold start, so the first API call may take a few seconds.
