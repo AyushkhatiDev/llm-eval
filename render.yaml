@@ -3,7 +3,7 @@ services:
     name: llm-eval-api
     runtime: python
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn -w 2 -b 0.0.0.0:5000 "backend.app:create_app()"
+    startCommand: gunicorn -w ${WEB_CONCURRENCY:-2} -b 0.0.0.0:$PORT "backend.app:create_app()"
     envVars:
       - key: DATABASE_URL
         sync: false
@@ -18,7 +18,7 @@ services:
     name: llm-eval-worker
     runtime: python
     buildCommand: pip install -r requirements.txt
-    startCommand: celery -A backend.workers.celery_app.celery worker --loglevel=info
+    startCommand: celery -A workers.celery_app.celery worker --loglevel=info
     envVars:
       - key: DATABASE_URL
         sync: false
