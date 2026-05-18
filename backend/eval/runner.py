@@ -7,6 +7,11 @@ import httpx
 from backend.judge.chain import judge_output
 
 
+def _is_groq_endpoint(model_endpoint: str | None) -> bool:
+    endpoint = (model_endpoint or "groq").strip().lower()
+    return endpoint in {"", "groq"} or "groq" in endpoint
+
+
 def _call_groq(prompt: str, model: str | None = None) -> str:
     from groq import Groq
 
@@ -30,6 +35,9 @@ def _call_groq(prompt: str, model: str | None = None) -> str:
 
 
 def _call_http_model(prompt: str, model_endpoint: str, model: str | None = None) -> str:
+    if _is_groq_endpoint(model_endpoint):
+        return _call_groq(prompt, model=model)
+
     model_name = model or os.getenv("OLLAMA_MODEL", "llama3.1:8b")
     response = httpx.post(
         model_endpoint,
@@ -55,11 +63,10 @@ def run_single_eval(
 ) -> dict:
     start = time.time()
     try:
-        endpoint = (model_endpoint or "groq").strip()
-        if endpoint.lower() == "groq" or "groq" in endpoint.lower():
+        if _is_groq_endpoint(model_endpoint):
             output = _call_groq(prompt, model=model)
         else:
-            output = _call_http_model(prompt, endpoint, model=model)
+            output = _call_http_model(prompt, model_endpoint, model=model)
         error = None
     except httpx.TimeoutException:
         output = ""
