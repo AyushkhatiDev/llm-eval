@@ -3,21 +3,47 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { api } from "@/lib/api";
 
+const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 export default function SuitePage() {
   const [endpoint, setEndpoint] = useState("groq");
   const [suiteVersion, setSuiteVersion] = useState("v1");
   const [running, setRunning] = useState(false);
   const [results, setResults] = useState([]);
+  const [totalTests, setTotalTests] = useState(0);
 
   async function runSuite() {
     setRunning(true);
     setResults([]);
+    setTotalTests(0);
+
     try {
-      const data = await api.runSuite({
-        model_endpoint: endpoint,
-        suite_version: suiteVersion,
-      });
-      setResults(data.results || []);
+      const suite = await api.getSuiteTests();
+      const tests = suite.tests || [];
+      setTotalTests(tests.length);
+
+      const completed = [];
+      for (const test of tests) {
+        const expectedBehavior = { ...test.expected_behavior, skip_llm_judge: true };
+        const result = await api.triggerEval({
+          prompt: test.prompt,
+          model_endpoint: endpoint,
+          expected_behavior: expectedBehavior,
+          model: endpoint === "groq" ? "llama-3.1-8b-instant" : undefined,
+        });
+
+        const normalized = {
+          ...result,
+          test_id: test.test_id,
+          suite_version: suiteVersion,
+        };
+        completed.push(normalized);
+        setResults([...completed]);
+
+        if (endpoint.toLowerCase().includes("groq") && completed.length < tests.length) {
+          await delay(2300);
+        }
+      }
     } catch (err) {
       alert("Failed to run suite: " + err.message);
     } finally {
@@ -26,7 +52,7 @@ export default function SuitePage() {
   }
 
   const completedCount = results.length;
-  const totalCount = results.length;
+  const totalCount = totalTests || results.length;
   const progressPct = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
 
   return (
@@ -91,7 +117,7 @@ export default function SuitePage() {
         </div>
       </motion.div>
 
-      {results.length > 0 && (
+      {(results.length > 0 || running) && (
         <motion.div
           className="card"
           initial={{ opacity: 0, y: 20 }}
@@ -126,7 +152,7 @@ export default function SuitePage() {
                       className="task-item"
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: i * 0.08 }}
+                      transition={{ delay: i * 0.02 }}
                     >
                       <div
                         style={{

@@ -1,3 +1,5 @@
+import json
+import os
 from flask import Blueprint, request, jsonify
 from backend.eval.regression import compute_regression
 from backend.models.eval_run import EvalRun
@@ -5,6 +7,12 @@ from backend.models.eval_result import EvalResult
 from backend.extensions import db
 
 api_bp = Blueprint("api", __name__)
+
+
+def _load_suite_tests():
+    suite_path = os.path.join(os.path.dirname(__file__), "../eval/test_suite.json")
+    with open(suite_path) as f:
+        return json.load(f)
 
 
 @api_bp.route("/health", methods=["GET"])
@@ -80,18 +88,24 @@ def trigger_adversarial():
     }), 200
 
 
+@api_bp.route("/eval/suite/tests", methods=["GET"])
+def get_suite_tests():
+    """Return suite tests for client-side sequential execution."""
+    tests = _load_suite_tests()
+    return jsonify({
+        "total": len(tests),
+        "tests": tests,
+    }), 200
+
+
 @api_bp.route("/eval/suite", methods=["POST"])
 def run_suite():
     """Run all tests in the suite against a model endpoint."""
-    import json, os
     from concurrent.futures import ThreadPoolExecutor
 
     data = request.get_json() or {}
 
-    suite_path = os.path.join(os.path.dirname(__file__), "../eval/test_suite.json")
-
-    with open(suite_path) as f:
-        tests = json.load(f)
+    tests = _load_suite_tests()
 
     from backend.eval.runner import run_single_eval
 
