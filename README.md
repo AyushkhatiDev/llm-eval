@@ -9,6 +9,10 @@ A full-stack LLM evaluation dashboard for running factual, safety, hallucination
 
 The deployed demo uses Groq as the default model endpoint. Render free-tier services can cold start, so the first API call may take a few seconds.
 
+## Research Note
+
+- [Hallucination Scoring vs. Random Baselines](./FINDINGS.md)
+
 ## Features
 
 - Run a curated 27-test suite covering:
