@@ -48,7 +48,7 @@ export default function ComparePage() {
             </div>
           ) : (
             <>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 16, alignItems: "end" }}>
+              <div className="compare-picker-grid">
                 <div className="form-group" style={{ margin: 0 }}>
                   <label className="form-label">Baseline Run (A)</label>
                   <select className="form-select" value={runA} onChange={(e) => setRunA(e.target.value)}>
@@ -60,7 +60,7 @@ export default function ComparePage() {
                     ))}
                   </select>
                 </div>
-                <div style={{ fontSize: 24, color: "var(--text-muted)", paddingBottom: 8 }}>→</div>
+                <div className="compare-arrow">→</div>
                 <div className="form-group" style={{ margin: 0 }}>
                   <label className="form-label">Compare Run (B)</label>
                   <select className="form-select" value={runB} onChange={(e) => setRunB(e.target.value)}>

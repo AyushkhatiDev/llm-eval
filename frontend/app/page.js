@@ -273,12 +273,12 @@ export default function DashboardPage() {
                 <tbody>
                   {runs.slice(0, 10).map((run) => (
                     <tr key={run.id}>
-                      <td style={{ fontFamily: "monospace", color: "var(--text-accent)" }}>
+                      <td data-label="Run ID" style={{ fontFamily: "monospace", color: "var(--text-accent)" }}>
                         {run.id?.substring(0, 8)}...
                       </td>
-                      <td>{run.suite_version || "v1"}</td>
-                      <td>{run.model_endpoint || "—"}</td>
-                      <td>
+                      <td data-label="Suite">{run.suite_version || "v1"}</td>
+                      <td data-label="Model">{run.model_endpoint || "—"}</td>
+                      <td data-label="Status">
                         {(() => {
                           const s = getRunStatus(run);
                           return (
@@ -289,10 +289,10 @@ export default function DashboardPage() {
                           );
                         })()}
                       </td>
-                      <td style={{ fontWeight: 700 }}>
+                      <td data-label="Score" style={{ fontWeight: 700 }}>
                         {run.pass_rate != null ? (run.pass_rate * 100).toFixed(0) + "%" : "—"}
                       </td>
-                      <td>
+                      <td data-label="Created">
                         {run.created_at
                           ? new Date(run.created_at).toLocaleString()
                           : "—"}

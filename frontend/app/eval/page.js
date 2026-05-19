@@ -44,7 +44,7 @@ export default function EvalPage() {
         <h1>New Evaluation</h1>
         <p>Submit a single prompt for evaluation against a model endpoint.</p>
       </motion.div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
+      <div className="split-grid">
         <motion.div className="card" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 }}>
           <div className="card-header"><h3 className="card-title">⚡ Configuration</h3></div>
           <div className="card-body">
@@ -64,7 +64,7 @@ export default function EvalPage() {
               <label className="form-label">Reference Answer</label>
               <input className="form-input" value={form.reference} onChange={(e) => setForm({ ...form, reference: e.target.value })} placeholder="e.g., The answer is 4" />
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+            <div className="form-grid-two">
               <div className="form-group">
                 <label className="form-label">Type</label>
                 <select className="form-select" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>

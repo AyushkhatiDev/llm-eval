@@ -105,20 +105,20 @@ export default function RunsPage() {
                         style={{ cursor: "pointer" }}
                         onClick={() => viewRun(run.id)}
                       >
-                        <td style={{ fontFamily: "monospace", color: "var(--text-accent)" }}>
+                        <td data-label="Run ID" style={{ fontFamily: "monospace", color: "var(--text-accent)" }}>
                           {run.id?.substring(0, 8)}...
                         </td>
-                        <td>
+                        <td data-label="Suite Version">
                           <span className="status-badge running">
                             {run.suite_version || "v1"}
                           </span>
                         </td>
-                        <td style={{ fontSize: 13 }}>
+                        <td data-label="Model" style={{ fontSize: 13 }}>
                           {run.model_endpoint
                             ? run.model_endpoint.replace("http://", "").substring(0, 30)
                             : "—"}
                         </td>
-                        <td>
+                        <td data-label="Status">
                           {(() => {
                             const s = getRunStatus(run);
                             return (
@@ -129,16 +129,16 @@ export default function RunsPage() {
                             );
                           })()}
                         </td>
-                        <td style={{ fontWeight: 700 }}>
+                        <td data-label="Avg Score" style={{ fontWeight: 700 }}>
                           {run.pass_rate != null ? (run.pass_rate * 100).toFixed(0) + "%" : "—"}
                         </td>
-                        <td>{run.total_tests || "—"}</td>
-                        <td style={{ fontSize: 13, color: "var(--text-muted)" }}>
+                        <td data-label="Tests">{run.total_tests || "—"}</td>
+                        <td data-label="Created" style={{ fontSize: 13, color: "var(--text-muted)" }}>
                           {run.created_at
                             ? new Date(run.created_at).toLocaleDateString()
                             : "—"}
                         </td>
-                        <td>
+                        <td data-label="Action">
                           <button
                             className="btn btn-primary btn-sm"
                             onClick={(e) => {
