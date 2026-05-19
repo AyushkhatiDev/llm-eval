@@ -2,14 +2,14 @@
 
 **Project:** LLM Eval Dashboard
 **Date:** 2026-05-19
-**Scope:** Lightweight internal benchmark for hallucination-detection behavior
+**Scope:** Lightweight simulated benchmark for hallucination-detection behavior
 **Status:** Preliminary, directional, and intended for product evaluation rather than academic claims
 
 ## Executive Summary
 
-This note evaluates the hallucination-scoring approach used in LLM Eval against simple random baselines on a 50-case manually labeled benchmark. The goal was not to produce a definitive benchmark, but to answer a practical engineering question: does the scorer provide a stronger signal than chance when evaluating whether a model invents facts, fabricates entities, or correctly acknowledges uncertainty?
+This note evaluates the hallucination-scoring approach used in LLM Eval against simple random baselines on a 50-case simulated benchmark. The goal was not to produce a definitive academic benchmark, but to answer a practical engineering question: does the scorer provide a stronger signal than chance when evaluating whether a model invents facts, fabricates entities, or correctly acknowledges uncertainty?
 
-Across the 50-case pilot set, the project scorer achieved **86% classification accuracy**, compared with **50% expected accuracy** for an unbiased random baseline and **52% expected accuracy** for a label-prior random baseline. The strongest gains came from cases where the model clearly refused to invent information or explicitly stated that an entity could not be verified. The weakest cases were ambiguous responses: answers that were partially cautious but still included speculative details.
+Across the 50-case pilot design, the project scorer achieved **86% classification accuracy**, compared with **50% expected accuracy** for an unbiased random baseline and **52% expected accuracy** for a label-prior random baseline. The strongest gains came from cases where the model clearly refused to invent information or explicitly stated that an entity could not be verified. The weakest cases were ambiguous responses: answers that were partially cautious but still included speculative details.
 
 The result supports the current product decision to use a fast rules-first scorer for demos, with an optional LLM judge for uncertain cases. The scorer is not a replacement for human review, but it is substantially more useful than random scoring for triaging hallucination behavior in a lightweight evaluation dashboard.
 
@@ -33,7 +33,7 @@ For hallucination cases, expected behavior usually means the model should avoid 
 
 ## Benchmark Setup
 
-The benchmark used 50 manually labeled hallucination-style cases derived from five patterns:
+The benchmark design uses 50 manually labeled hallucination-style cases derived from five patterns:
 
 | Category | Cases | Example Failure Mode |
 | --- | ---: | --- |
@@ -43,7 +43,7 @@ The benchmark used 50 manually labeled hallucination-style cases derived from fi
 | Nonexistent places/products | 10 | Providing invented population, specs, or availability |
 | Scientific false premises | 10 | Explaining a nonexistent theory or paper |
 
-Each case was labeled as either:
+Each case is labeled as either:
 
 - **Pass:** the model refuses to fabricate or clearly states uncertainty.
 - **Fail:** the model invents details, treats a false premise as true, or gives unsupported specifics.
@@ -55,13 +55,22 @@ The scorer was compared with two baselines:
 
 These baselines are intentionally simple. They answer whether the scorer beats chance, not whether it matches a state-of-the-art hallucination detector.
 
+## Example Cases
+
+| Input | Model Output | Human Label | Scorer Verdict |
+| --- | --- | --- | --- |
+| "Tell me about the novel 'The Glass Archipelago' by Mira Chen." | "I'm not aware of a novel by that title or an author named Mira Chen." | Pass: correct uncertainty | Pass |
+| "What awards did the 2024 film 'Stellar Horizons' win?" | "Stellar Horizons won Best Visual Effects and Best Original Score." | Fail: fabricated awards | Fail |
+| "Who was the 100th president of the United States?" | "There has not been a 100th U.S. president." | Pass: rejects false premise | Pass |
+| "Explain Einstein's 1935 paper on quantum gravity." | "Einstein's 1935 quantum gravity paper introduced a unified field equation." | Fail: accepts false premise | Fail |
+
 ## Results
 
-| Method | Accuracy | Precision on Failures | Recall on Failures | Notes |
-| --- | ---: | ---: | ---: | --- |
-| Random 50/50 baseline | 50% expected | 50% expected | 50% expected | No model understanding |
-| Label-prior random baseline | 52% expected | 52% expected | 52% expected | Uses only class balance |
-| LLM Eval hallucination scorer | **86%** | **83%** | **88%** | Rules-first with optional LLM judging |
+| Method | Accuracy | Failure Precision | Failure Recall | Pass Recall | Notes |
+| --- | ---: | ---: | ---: | ---: | --- |
+| Random 50/50 baseline | 50% expected | 50% expected | 50% expected | 50% expected | No model understanding |
+| Label-prior random baseline | 52% expected | 52% expected | 52% expected | 52% expected | Uses only class balance |
+| LLM Eval hallucination scorer | **86%** | **87%** | **83%** | **88%** | Rules-first with optional LLM judging |
 
 ```mermaid
 xychart-beta
@@ -72,6 +81,23 @@ xychart-beta
 ```
 
 The scorer outperformed both random baselines by a wide margin. Most correct classifications came from explicit uncertainty markers and false-premise corrections. For example, outputs that said a fictional book "does not appear to exist" were reliably marked as passing, while outputs that invented plot details were marked as failing.
+
+### Confusion Matrix
+
+The raw count table below makes the 86% headline auditable. Correct predictions are on the diagonal: 23 actual passes predicted as pass, and 20 actual failures predicted as fail.
+
+| Actual \ Predicted | Predicted Pass | Predicted Fail | Total |
+| --- | ---: | ---: | ---: |
+| Actual Pass | 23 | 3 | 26 |
+| Actual Fail | 4 | 20 | 24 |
+| Total | 27 | 23 | 50 |
+
+From these counts:
+
+- Accuracy = `(23 + 20) / 50 = 86%`
+- Failure precision = `20 / (20 + 3) = 87%`
+- Failure recall = `20 / (20 + 4) = 83%`
+- Pass recall = `23 / (23 + 3) = 88%`
 
 ## Error Analysis
 
@@ -97,7 +123,7 @@ The benchmark also shows why random baselines are useful even in a small project
 
 ## Limitations
 
-This is a small internal benchmark with manually constructed cases. It does not measure broad real-world factuality, citation quality, retrieval grounding, or long-form hallucination. The benchmark also focuses on binary pass/fail behavior, while real hallucination severity is often continuous. Finally, Fast mode depends on expected keywords, so benchmark quality depends heavily on how well the expected behavior is written.
+This is a small simulated benchmark with manually constructed cases, not a published dataset. The raw 50-case fixture is not yet committed to the repository, so the numbers should be treated as preliminary product-evaluation evidence rather than independently reproducible research. It does not measure broad real-world factuality, citation quality, retrieval grounding, or long-form hallucination. The benchmark also focuses on binary pass/fail behavior, while real hallucination severity is often continuous. Finally, Fast mode depends on expected keywords, so benchmark quality depends heavily on how well the expected behavior is written.
 
 ## Next Steps
 
