@@ -4,6 +4,9 @@ import {
   Area,
   BarChart,
   Bar,
+  LineChart,
+  Line,
+  LabelList,
   RadarChart,
   Radar,
   PolarGrid,
@@ -28,16 +31,21 @@ const COLORS = {
   danger: "#ff6b6b",
   warning: "#fdcb6e",
   info: "#74b9ff",
+  muted: "#4a4a68",
 };
 
-function CustomTooltip({ active, payload, label }) {
+function CustomTooltip({ active, payload, label, formatter }) {
   if (!active || !payload?.length) return null;
+  const render = (value) => {
+    if (typeof value !== "number") return value;
+    return formatter ? formatter(value) : value.toFixed(2);
+  };
   return (
     <div className="custom-tooltip">
       <div className="label">{label}</div>
       {payload.map((entry, i) => (
         <div key={i} className="value" style={{ color: entry.color }}>
-          {entry.name}: {typeof entry.value === "number" ? entry.value.toFixed(2) : entry.value}
+          {entry.name}: {render(entry.value)}
         </div>
       ))}
     </div>
@@ -180,6 +188,107 @@ export function StatusPieChart({ data }) {
             wrapperStyle={{ fontSize: 12, color: "#9898b0" }}
           />
         </PieChart>
+      </ResponsiveContainer>
+    </motion.div>
+  );
+}
+
+/**
+ * The headline comparison on the scorer-validation page: measured scorer
+ * accuracy against the two random baselines it has to beat to mean anything.
+ */
+export function BaselineBarChart({ data }) {
+  return (
+    <motion.div
+      className="chart-container"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6 }}
+    >
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={data} margin={{ top: 20, right: 10, left: -10, bottom: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" vertical={false} />
+          <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+          <YAxis domain={[0, 1]} tickFormatter={(v) => `${Math.round(v * 100)}%`} />
+          <Tooltip content={<CustomTooltip formatter={(v) => `${(v * 100).toFixed(1)}%`} />} />
+          <Bar dataKey="accuracy" name="Accuracy" radius={[8, 8, 0, 0]}>
+            {data.map((entry, index) => (
+              <Cell
+                key={`baseline-${index}`}
+                fill={entry.isScorer ? COLORS.primary : COLORS.muted}
+              />
+            ))}
+            <LabelList
+              dataKey="accuracy"
+              position="top"
+              formatter={(v) => `${(v * 100).toFixed(0)}%`}
+              style={{ fill: "#e8e8f0", fontSize: 13, fontWeight: 700 }}
+            />
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    </motion.div>
+  );
+}
+
+/** Validation history: did a rule change move scorer accuracy? */
+export function ValidationHistoryChart({ data }) {
+  return (
+    <motion.div
+      className="chart-container"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6 }}
+    >
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart data={data} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+          <YAxis domain={[0, 1]} tickFormatter={(v) => `${Math.round(v * 100)}%`} />
+          <Tooltip content={<CustomTooltip formatter={(v) => `${(v * 100).toFixed(1)}%`} />} />
+          <Legend />
+          <Line
+            type="monotone"
+            dataKey="accuracy"
+            name="Scorer accuracy"
+            stroke={COLORS.primary}
+            strokeWidth={2}
+            dot={{ fill: COLORS.primary, r: 4 }}
+          />
+          <Line
+            type="monotone"
+            dataKey="baseline"
+            name="Best random baseline"
+            stroke={COLORS.muted}
+            strokeDasharray="4 4"
+            strokeWidth={2}
+            dot={false}
+          />
+        </LineChart>
+      </ResponsiveContainer>
+    </motion.div>
+  );
+}
+
+/** Which tier of the staged scorer produced the final verdict. */
+export function TierBarChart({ data }) {
+  return (
+    <motion.div
+      className="chart-container"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6 }}
+    >
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={data} layout="vertical" margin={{ top: 10, right: 30, left: 40, bottom: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+          <XAxis type="number" allowDecimals={false} />
+          <YAxis type="category" dataKey="label" width={90} tick={{ fontSize: 12 }} />
+          <Tooltip content={<CustomTooltip />} />
+          <Bar dataKey="count" name="Results" fill={COLORS.secondary} radius={[0, 6, 6, 0]}>
+            <LabelList dataKey="count" position="right" style={{ fill: "#9898b0", fontSize: 12 }} />
+          </Bar>
+        </BarChart>
       </ResponsiveContainer>
     </motion.div>
   );
