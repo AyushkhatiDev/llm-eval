@@ -33,12 +33,33 @@ export const api = {
 
   getSuiteTests: () => request("/eval/suite/tests"),
 
+  checkFlakiness: (data) =>
+    request("/eval/flakiness", { method: "POST", body: JSON.stringify(data) }),
+
   // Runs
   createRun: (data) =>
     request("/runs", { method: "POST", body: JSON.stringify(data) }),
   listRuns: () => request("/runs"),
   getRun: (runId) => request(`/runs/${runId}`),
+  deleteRun: (runId) => request(`/runs/${runId}`, { method: "DELETE" }),
+  reproduceRun: (runId) => request(`/runs/${runId}/reproduce`, { method: "POST" }),
 
-  // Regression
-  compareRuns: (runAId, runBId) => request(`/regression/${runAId}/${runBId}`),
+  // Dashboard stats — every KPI on the overview comes from these.
+  overviewStats: () => request("/stats/overview"),
+  scoreTrend: (limit = 10) => request(`/stats/trend?limit=${limit}`),
+  categoryStats: (runId) =>
+    request(`/stats/categories${runId ? `?run_id=${runId}` : ""}`),
+
+  // Compare
+  compareRuns: (runAId, runBId) =>
+    request(`/runs/compare?a=${runAId}&b=${runBId}`),
+
+  // Scorer validation — the harness evaluating itself.
+  scorerFixture: () => request("/scorer/fixture"),
+  runScorerValidation: (data = {}) =>
+    request("/scorer/validate", { method: "POST", body: JSON.stringify(data) }),
+  listScorerValidations: (limit = 25) =>
+    request(`/scorer/validations?limit=${limit}`),
+  latestScorerValidation: () => request("/scorer/validations/latest"),
+  getScorerValidation: (id) => request(`/scorer/validations/${id}`),
 };

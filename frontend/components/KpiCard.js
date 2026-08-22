@@ -2,40 +2,51 @@
 import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
 
-function AnimatedCounter({ value, duration = 1.5 }) {
-  const [display, setDisplay] = useState(0);
-  const numVal = typeof value === "number" ? value : parseFloat(value) || 0;
+function AnimatedCounter({ value, format }) {
+  const numeric = typeof value === "number" ? value : NaN;
+  const [display, setDisplay] = useState(Number.isNaN(numeric) ? 0 : numeric);
 
   useEffect(() => {
-    const start = 0;
-    const end = numVal;
-
+    if (Number.isNaN(numeric)) return undefined;
     const startTime = performance.now();
+    const duration = 1200;
     let frameId;
-    const step = (currentTime) => {
-      const elapsed = (currentTime - startTime) / (duration * 1000);
-      const progress = Math.min(elapsed, 1);
+    const step = (now) => {
+      const progress = Math.min((now - startTime) / duration, 1);
       const eased = 1 - Math.pow(1 - progress, 3);
-      const current = start + (end - start) * eased;
-      setDisplay(current);
+      setDisplay(numeric * eased);
       if (progress < 1) frameId = requestAnimationFrame(step);
     };
     frameId = requestAnimationFrame(step);
     return () => cancelAnimationFrame(frameId);
-  }, [numVal, duration]);
+  }, [numeric]);
 
-  const isPercent = typeof value === "string" && value.includes("%");
-  const isFloat = !Number.isInteger(numVal);
-
-  return (
-    <span>
-      {isFloat ? display.toFixed(1) : Math.round(display)}
-      {isPercent ? "%" : ""}
-    </span>
-  );
+  if (Number.isNaN(numeric)) return <span>{value ?? "—"}</span>;
+  return <span>{format ? format(display) : Math.round(display)}</span>;
 }
 
-export default function KpiCard({ icon, label, value, change, changeDir, color = "purple", delay = 0 }) {
+/**
+ * A KPI card renders a delta only when the API supplied one. A missing delta
+ * means there was no prior window to compare against — so nothing is shown,
+ * rather than a plausible-looking number.
+ */
+export default function KpiCard({
+  icon,
+  label,
+  value,
+  format,
+  delta,
+  deltaLabel,
+  deltaFormat,
+  invertDelta = false,
+  basis,
+  color = "purple",
+  delay = 0,
+}) {
+  const hasDelta = delta !== null && delta !== undefined && delta !== 0;
+  const isUp = hasDelta && delta > 0;
+  const isGood = invertDelta ? !isUp : isUp;
+
   return (
     <motion.div
       className={`kpi-card ${color}`}
@@ -48,12 +59,20 @@ export default function KpiCard({ icon, label, value, change, changeDir, color =
         <span className="kpi-card-label">{label}</span>
       </div>
       <div className="kpi-card-value">
-        <AnimatedCounter value={value} />
+        {value === null || value === undefined ? (
+          <span style={{ color: "var(--text-muted)" }}>—</span>
+        ) : (
+          <AnimatedCounter value={value} format={format} />
+        )}
       </div>
-      {change && (
-        <span className={`kpi-card-change ${changeDir || "up"}`}>
-          {changeDir === "down" ? "↓" : "↑"} {change}
+      {hasDelta ? (
+        <span className={`kpi-card-change ${isGood ? "up" : "down"}`}>
+          {isUp ? "↑" : "↓"}{" "}
+          {deltaFormat ? deltaFormat(Math.abs(delta)) : Math.abs(delta)}
+          {deltaLabel ? ` ${deltaLabel}` : ""}
         </span>
+      ) : (
+        <span className="kpi-card-basis">{basis || "no comparison window yet"}</span>
       )}
     </motion.div>
   );

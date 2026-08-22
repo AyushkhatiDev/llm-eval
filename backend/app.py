@@ -7,8 +7,11 @@ def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
     
-    #Init extenstions
+    # Init extensions
     db.init_app(app)
+    # Import models before Migrate so every table is visible to autogenerate.
+    from backend import models  # noqa: F401
+
     migrate.init_app(app, db)
     cors.init_app(app, resources={r"/api*": {"origins": "*"}})
 
@@ -16,6 +19,6 @@ def create_app():
 
     @app.route("/")
     def root():
-        return {"status": "ok", "service": "llm-eval-api", "version": "groq-target-v2"}
+        return {"status": "ok", "service": "llm-eval-api", "version": "risk-harness-v3"}
 
     return app

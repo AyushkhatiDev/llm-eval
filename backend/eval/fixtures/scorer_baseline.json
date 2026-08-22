@@ -1,0 +1,12 @@
+{
+  "fixture": "hallucination_benchmark_v1",
+  "fixture_version": "v1",
+  "scorer_config_hash": "4645eba572a1",
+  "accuracy": 0.9,
+  "precision": 0.8276,
+  "recall": 1.0,
+  "f1": 0.9057,
+  "baseline_random": 0.4988,
+  "baseline_label_prior": 0.5003,
+  "recorded_at": "2026-08-22T06:23:50.327294+00:00"
+}

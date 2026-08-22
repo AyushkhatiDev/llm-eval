@@ -3,7 +3,9 @@ services:
     name: llm-eval-api
     runtime: python
     buildCommand: pip install --no-cache-dir -r requirements.txt
-    startCommand: gunicorn --timeout 180 -w ${WEB_CONCURRENCY:-2} -b 0.0.0.0:$PORT "backend.app:create_app()"
+    # Migrations run at boot: Render's free tier has no pre-deploy hook, and
+    # Alembic is a no-op when the database is already at head.
+    startCommand: flask db upgrade && gunicorn --timeout 180 -w ${WEB_CONCURRENCY:-2} -b 0.0.0.0:$PORT "backend.app:create_app()"
     envVars:
       - key: DATABASE_URL
         sync: false
@@ -13,3 +15,7 @@ services:
         sync: false
       - key: PYTHONPATH
         value: .
+      - key: FLASK_APP
+        value: run.py
+      - key: GROQ_MIN_INTERVAL_SECONDS
+        value: "2.2"

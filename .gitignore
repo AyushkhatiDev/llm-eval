@@ -21,8 +21,11 @@ build/
 .DS_Store
 Thumbs.db
 
-# Migrations
-migrations/
+# Alembic revisions are committed: `flask db upgrade` runs at boot on Render.
+# Only the local scratch database is ignored.
 
 # Storage
 storage/*.db
+
+# Playwright / docs tooling
+.playwright/

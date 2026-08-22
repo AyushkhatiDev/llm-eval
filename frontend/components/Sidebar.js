@@ -11,6 +11,10 @@ const navItems = [
   { label: "Compare", path: "/compare", icon: "🔀" },
 ];
 
+const harnessItems = [
+  { label: "Scorer Validation", path: "/scorer-validation", icon: "🔬" },
+];
+
 export default function Sidebar() {
   const pathname = usePathname();
 
@@ -24,12 +28,24 @@ export default function Sidebar() {
       <div className="sidebar-logo">
         <div className="sidebar-logo-icon">🧠</div>
         <span className="sidebar-logo-text">LLM Eval</span>
-        <span className="sidebar-logo-badge">v1</span>
+        <span className="sidebar-logo-badge">v2</span>
       </div>
 
       <nav className="sidebar-nav">
         <div className="nav-section-label">Main</div>
         {navItems.map((item) => (
+          <Link
+            key={item.path}
+            href={item.path}
+            className={`nav-link ${pathname === item.path ? "active" : ""}`}
+          >
+            <span className="nav-link-icon">{item.icon}</span>
+            {item.label}
+          </Link>
+        ))}
+
+        <div className="nav-section-label">Harness</div>
+        {harnessItems.map((item) => (
           <Link
             key={item.path}
             href={item.path}
