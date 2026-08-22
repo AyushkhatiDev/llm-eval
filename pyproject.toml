@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "llm-eval"
+version = "0.2.0"
+description = "Adversarial evaluation harness for AI-driven payment risk decisions, with a self-validating staged scorer."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [
+    { name = "Ayush Khati", email = "udeckservicespvtltd@gmail.com" },
+]
+maintainers = [
+    { name = "Ayush Khati", email = "udeckservicespvtltd@gmail.com" },
+]
+keywords = ["llm", "evaluation", "hallucination", "payments", "risk", "adversarial"]
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.11",
+    "Framework :: Flask",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dynamic = ["dependencies"]
+
+[project.urls]
+Homepage = "https://github.com/AyushkhatiDev/llm-eval"
+Repository = "https://github.com/AyushkhatiDev/llm-eval"
+Demo = "https://llm-eval-silk.vercel.app/"
+
+[tool.setuptools.dynamic]
+dependencies = { file = ["requirements.txt"] }
+
+[tool.setuptools.packages.find]
+include = ["backend*", "storage*", "workers*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+filterwarnings = ["ignore::DeprecationWarning"]
