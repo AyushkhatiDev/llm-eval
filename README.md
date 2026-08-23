@@ -24,6 +24,10 @@ how much damage each one does.
 50 labelled cases; baselines seeded (1337) over 1000 trials. Reproduce with
 `python scripts/validate_scorer.py`.
 
+**New here? → [docs/GUIDE.md](docs/GUIDE.md)** is a hands-on walkthrough: a five-minute tour of the
+deployed demo, how to verify the 90% yourself with no API key, and how to run and test everything
+locally.
+
 **Two things to read before anything else:**
 
 - **[The corrections](#corrections-to-earlier-published-numbers)** — this repository previously
@@ -298,6 +302,9 @@ knowing the gap is worth more than pretending it isn't there:
 ---
 
 ## Running it locally
+
+For a fuller walkthrough — including what to click, what a good run looks like, and troubleshooting
+— see **[docs/GUIDE.md](docs/GUIDE.md)**.
 
 ```bash
 git clone https://github.com/AyushkhatiDev/llm-eval.git
