@@ -241,6 +241,14 @@ underneath.
 If the two runs used different suite versions or a non-overlapping set of tests, the response warns
 rather than silently diffing mismatched sets.
 
+![Compare view showing five regressions, the severity-weighted rollup, and a suite-version mismatch warning](docs/images/compare.png)
+
+The run above is a real one, and worth reading: the same suite against the same model with the same
+seed produced five regressions and three fixes. That is not the harness being wrong — it is provider
+nondeterminism that survives a pinned temperature and seed, which is precisely what the
+[flakiness check](#determinism-and-reproducibility) exists to quantify before you gate a build on a
+number.
+
 ---
 
 ## Limitations
