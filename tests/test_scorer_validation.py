@@ -112,3 +112,12 @@ def test_validation_is_deterministic():
 def test_unknown_fixture_raises():
     with pytest.raises(FileNotFoundError):
         run_validation(config=OFFLINE, fixture_version="does_not_exist")
+
+
+def test_fixture_listing_excludes_the_ci_baseline_file():
+    """`scorer_baseline.json` lives alongside the fixtures but is not one."""
+    from backend.eval.scorer_validation import list_fixtures
+
+    names = list_fixtures()
+    assert DEFAULT_FIXTURE in names
+    assert "scorer_baseline" not in names

@@ -104,6 +104,27 @@ export default function ScorerValidationPage() {
     ? latest.accuracy - Math.max(latest.baseline_random, latest.baseline_label_prior)
     : null;
 
+  /**
+   * The label-prior baseline, derived in closed form from the persisted
+   * confusion matrix rather than from the simulation. A coin weighted to the
+   * fixture's own class balance is right when it guesses fail on a fail
+   * (p × p) or pass on a pass ((1−p) × (1−p)), so expected accuracy is
+   * p² + (1−p)². Shown next to the seeded figure so a reader can check the
+   * simulation instead of trusting it.
+   */
+  const labelPrior = useMemo(() => {
+    if (!matrix) return null;
+    const fails = matrix.true_positive + matrix.false_negative;
+    const passes = matrix.true_negative + matrix.false_positive;
+    const total = fails + passes;
+    if (!total) return null;
+    const p = fails / total;
+    return { fails, passes, total, p, closedForm: p * p + (1 - p) * (1 - p) };
+  }, [matrix]);
+
+  const missed = matrix?.false_negative ?? null;
+  const falseAlarms = matrix?.false_positive ?? null;
+
   return (
     <>
       <motion.div
@@ -145,6 +166,44 @@ export default function ScorerValidationPage() {
         </div>
       ) : (
         <>
+          {/* ── Corrections ───────────────────────────────────────── */}
+          <motion.div
+            className="card corrections-card"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            style={{ marginBottom: 24 }}
+          >
+            <div className="card-header">
+              <h3 className="card-title">📌 Corrections to earlier published numbers</h3>
+              <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                superseded by this page
+              </span>
+            </div>
+            <div className="card-body">
+              <p className="corrections-text">
+                An earlier research note in this repository reported{" "}
+                <strong>86% scorer accuracy</strong> against a 50-case benchmark that was described
+                but never committed. Committing the fixture and re-running the scorer against it
+                produced <strong>{pct(latest.accuracy)}</strong>. The old figure came from a pilot
+                set that no longer exists, so it could not be checked, reproduced, or defended. The
+                number on this page is the one this repository can stand behind, and it moves
+                whenever the scorer or the fixture changes — which is the point of recording it.
+              </p>
+              <p className="corrections-text">
+                The same note quoted <strong>52%</strong>{" "}
+                for the label-prior random baseline. That was arithmetically wrong. For a coin matched to this fixture&apos;s class balance,
+                expected accuracy is <code>p² + (1−p)²</code>, which is{" "}
+                <strong>{labelPrior ? pct(labelPrior.closedForm) : "—"}</strong>{" "}
+                here, not 52%. The
+                harness now computes both baselines from seeded draws and stores the seed, and the
+                closed form is shown below the chart so the simulation can be checked rather than
+                trusted. Neither error changed the scorer&apos;s behavior — both were errors in how
+                its quality was reported, which is exactly the class of mistake this page exists to
+                catch.
+              </p>
+            </div>
+          </motion.div>
+
           {/* ── Headline ──────────────────────────────────────────── */}
           <motion.div
             className="card"
@@ -174,6 +233,21 @@ export default function ScorerValidationPage() {
                 </div>
                 <div className="validation-headline-chart">
                   <BaselineBarChart data={baselineData} />
+                  {labelPrior && (
+                    <p className="baseline-derivation">
+                      <span>Check the label-prior baseline yourself:</span> the fixture holds{" "}
+                      {labelPrior.fails} fail and {labelPrior.passes} pass labels, so{" "}
+                      <code>
+                        p = {labelPrior.fails}/{labelPrior.total} = {labelPrior.p.toFixed(2)}
+                      </code>{" "}
+                      and expected accuracy is{" "}
+                      <code>
+                        p² + (1−p)² = {pct(labelPrior.closedForm)}
+                      </code>
+                      . The seeded simulation above measured{" "}
+                      {pct(latest.baseline_label_prior)} over {latest.baseline_trials} trials.
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -217,6 +291,32 @@ export default function ScorerValidationPage() {
               </span>
             </div>
             <div className="card-body">
+              <div className={`asymmetry-callout ${missed === 0 ? "good" : "warn"}`}>
+                {missed === 0 ? (
+                  <>
+                    <strong>
+                      Recall is {pct(latest.recall)} — no fabrication in the fixture went
+                      unflagged.
+                    </strong>{" "}
+                    Every one of the {falseAlarms} errors is a false alarm: a correct refusal the
+                    scorer flagged anyway. For a risk system that is the right direction to fail
+                    in. Over-flagging costs a human review; under-flagging ships a fabricated
+                    compliance limit into a decision. The cost of this profile is that the pass
+                    rates it reports are pessimistic, not that fabrications slip through.
+                  </>
+                ) : (
+                  <>
+                    <strong>
+                      Recall is {pct(latest.recall)} — {missed} fabrication
+                      {missed === 1 ? "" : "s"} went unflagged.
+                    </strong>{" "}
+                    Missed fabrications are the serious failure direction for a risk system: a
+                    false alarm costs a human review, but an unflagged fabrication reaches a
+                    decision. Open the &ldquo;missed hallucination&rdquo; cell below to read them.
+                  </>
+                )}
+              </div>
+
               <div className="confusion-grid">
                 <div className="confusion-corner">actual \ predicted</div>
                 <div className="confusion-heading">Scorer said pass</div>
@@ -419,14 +519,46 @@ export default function ScorerValidationPage() {
             </div>
             <div className="card-body">
               <p style={{ color: "var(--text-secondary)", marginBottom: 16, fontSize: 14 }}>
-                This is a small, self-authored benchmark. It is strong enough to say the scorer
-                beats chance and to show where it fails. It is not evidence of general
+                This is <strong>preliminary product evidence, not a research result</strong>. The
+                fixture is {latest.fixture_case_count} cases, written and labelled by one person —
+                the author of this repository, who also wrote the rules being measured. There is no
+                inter-annotator agreement figure because there is one annotator, and no held-out
+                split, so {pct(latest.accuracy)} is an upper bound on how the scorer would do on
+                cases it was not designed against. It is strong enough to say the scorer beats
+                chance and to show exactly where it fails. It is not evidence of general
                 hallucination-detection quality.
               </p>
               <ul className="limitations-list">
                 {(latest.limitations || fixture?.limitations || []).map((item) => (
                   <li key={item}>{item}</li>
                 ))}
+              </ul>
+
+              <h4 className="rigour-heading">What would make this rigorous</h4>
+              <p style={{ color: "var(--text-muted)", fontSize: 13, marginBottom: 12 }}>
+                Not aspirational roadmap — this is the specific distance between what is measured
+                here and what would support a stronger claim.
+              </p>
+              <ul className="rigour-list">
+                <li>
+                  <strong>A second annotator</strong>{" "}
+                  on the existing cases, reported as a Cohen&apos;s κ. Without it, &ldquo;agreement with human labels&rdquo; means
+                  agreement with <em>one</em> human.
+                </li>
+                <li>
+                  <strong>A held-out split authored after the rules are frozen.</strong> This is
+                  the one that matters most: it converts the current upper bound into an estimate.
+                </li>
+                <li>
+                  <strong>A published dataset</strong>{" "}
+                  (TruthfulQA, HaluEval) as an external comparison, so the scorer is measured
+                  against something the author did not write.
+                </li>
+                <li>
+                  <strong>Captured production traces</strong>{" "}
+                  in place of hand-written outputs, and graded severity in place of binary
+                  pass/fail.
+                </li>
               </ul>
             </div>
           </motion.div>

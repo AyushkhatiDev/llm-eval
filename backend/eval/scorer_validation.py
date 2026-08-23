@@ -38,9 +38,25 @@ def load_fixture(version: str = DEFAULT_FIXTURE) -> dict:
 
 
 def list_fixtures() -> list[str]:
+    """
+    Benchmark fixtures only. The directory also holds `scorer_baseline.json`
+    (the accuracy CI gates against), which is not something you can validate
+    against — a fixture is a file with labelled `cases`.
+    """
     if not os.path.isdir(FIXTURE_DIR):
         return []
-    return sorted(f[:-5] for f in os.listdir(FIXTURE_DIR) if f.endswith(".json"))
+
+    names = []
+    for filename in sorted(os.listdir(FIXTURE_DIR)):
+        if not filename.endswith(".json"):
+            continue
+        try:
+            with open(os.path.join(FIXTURE_DIR, filename)) as f:
+                if json.load(f).get("cases"):
+                    names.append(filename[:-5])
+        except (json.JSONDecodeError, OSError):
+            continue
+    return names
 
 
 # ── metrics ────────────────────────────────────────────────────────────────
