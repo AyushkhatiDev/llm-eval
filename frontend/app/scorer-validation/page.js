@@ -125,6 +125,25 @@ export default function ScorerValidationPage() {
   const missed = matrix?.false_negative ?? null;
   const falseAlarms = matrix?.false_positive ?? null;
 
+  /**
+   * Latest run per fixture. The development set and the held-out set answer
+   * different questions — an upper bound versus a generalisation estimate — so
+   * they are shown together and never averaged.
+   */
+  const byFixture = useMemo(() => {
+    const seen = {};
+    for (const row of history) {
+      if (!seen[row.fixture_name]) seen[row.fixture_name] = row;
+    }
+    const dev = Object.values(seen).find((r) => !r.held_out) || null;
+    const heldOut = Object.values(seen).find((r) => r.held_out) || null;
+    return {
+      dev,
+      heldOut,
+      gap: dev && heldOut ? dev.accuracy - heldOut.accuracy : null,
+    };
+  }, [history]);
+
   return (
     <>
       <motion.div
@@ -275,6 +294,58 @@ export default function ScorerValidationPage() {
               </div>
             </div>
           </motion.div>
+
+          {/* ── Generalisation: development vs held-out ───────────── */}
+          {byFixture.heldOut && byFixture.dev && (
+            <motion.div
+              className="card generalisation-card"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.05 }}
+              style={{ marginBottom: 24 }}
+            >
+              <div className="card-header">
+                <h3 className="card-title">🧪 Does it generalise? Held-out test</h3>
+                <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                  rules frozen, then new cases written
+                </span>
+              </div>
+              <div className="card-body">
+                <div className="generalisation-grid">
+                  <div className="generalisation-figure">
+                    <span className="generalisation-label">Development set</span>
+                    <strong>{pct(byFixture.dev.accuracy)}</strong>
+                    <small>
+                      {byFixture.dev.fixture_case_count} cases the rules were written against —
+                      an upper bound
+                    </small>
+                  </div>
+                  <div className="generalisation-arrow">→</div>
+                  <div className="generalisation-figure primary">
+                    <span className="generalisation-label">Held-out set</span>
+                    <strong>{pct(byFixture.heldOut.accuracy)}</strong>
+                    <small>
+                      {byFixture.heldOut.fixture_case_count} cases written after the rules were
+                      frozen — the honest estimate
+                    </small>
+                  </div>
+                  <div className="generalisation-figure gap">
+                    <span className="generalisation-label">Generalisation gap</span>
+                    <strong>{(byFixture.gap * 100).toFixed(1)} pts</strong>
+                    <small>what tuning on the development set was worth</small>
+                  </div>
+                </div>
+                <p className="generalisation-note">
+                  <strong>Recall stays at {pct(byFixture.heldOut.recall)} on unseen cases.</strong>{" "}
+                  The scorer loses accuracy on the held-out set, but it loses it in one direction
+                  only: it still catches every fabrication, and the extra errors are false alarms on
+                  correct refusals phrased in ways the rules were never written for. The safety
+                  property generalises; the precision does not. A scorer that degraded the other way
+                  would be unusable in a risk path.
+                </p>
+              </div>
+            </motion.div>
+          )}
 
           {/* ── Confusion matrix ──────────────────────────────────── */}
           <motion.div

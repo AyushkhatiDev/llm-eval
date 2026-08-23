@@ -25,11 +25,15 @@ jobs:
       - name: Run tests
         run: pytest -q
 
-      # The eval tool's own regression gate: the scorer is measured against the
-      # hand-labelled fixture, and the build fails if accuracy drops more than
-      # 2 points below the committed baseline. Offline — no API key required.
-      - name: Scorer validation gate
+      # The eval tool's own regression gate. The scorer is measured against the
+      # hand-labelled development set and, separately, against a held-out set
+      # authored after the rules were frozen. The build fails if either drops
+      # more than 2 points below its committed baseline. Offline — no API key.
+      - name: Scorer gate (development set)
         run: python scripts/validate_scorer.py --tolerance 0.02
+
+      - name: Scorer gate (held-out set)
+        run: python scripts/validate_scorer.py --held-out --tolerance 0.02
 
   frontend:
     name: Frontend build

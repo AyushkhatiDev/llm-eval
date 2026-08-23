@@ -17,7 +17,11 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from backend.eval.scorer_validation import DEFAULT_FIXTURE, run_validation  # noqa: E402
+from backend.eval.scorer_validation import (  # noqa: E402
+    DEFAULT_FIXTURE,
+    HELDOUT_FIXTURE,
+    run_validation,
+)
 from backend.judge.chain import ScorerConfig  # noqa: E402
 
 BASELINE_PATH = os.path.join(
@@ -26,24 +30,42 @@ BASELINE_PATH = os.path.join(
 )
 
 
+def _load_baselines() -> dict:
+    """
+    Baselines are keyed by fixture: the development set and the held-out set
+    move independently, and gating them against each other would be meaningless.
+    """
+    if not os.path.exists(BASELINE_PATH):
+        return {"fixtures": {}}
+    with open(BASELINE_PATH) as f:
+        stored = json.load(f)
+    if "fixtures" not in stored:  # pre-held-out flat format
+        stored = {"fixtures": {stored.get("fixture", DEFAULT_FIXTURE): stored}}
+    return stored
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--fixture", default=DEFAULT_FIXTURE)
+    parser.add_argument("--held-out", action="store_true",
+                        help=f"shorthand for --fixture {HELDOUT_FIXTURE}")
     parser.add_argument("--tolerance", type=float, default=0.02,
                         help="allowed accuracy drop before the build fails (default: 2 points)")
     parser.add_argument("--update-baseline", action="store_true")
     parser.add_argument("--json", action="store_true", help="print the full report as JSON")
     args = parser.parse_args()
+    fixture = HELDOUT_FIXTURE if args.held_out else args.fixture
 
     # Offline config: rules only. The gate must not depend on an API key.
     config = ScorerConfig(semantic_enabled=False, llm_judge_enabled=False)
-    report = run_validation(config=config, fixture_version=args.fixture)
+    report = run_validation(config=config, fixture_version=fixture)
 
     if args.json:
         print(json.dumps(report, indent=2))
 
     matrix = report["confusion_matrix"]
-    print(f"\nFixture           {report['fixture_name']} ({report['fixture_case_count']} cases)")
+    kind = "HELD OUT — authored after the rules were frozen" if report["held_out"] else "development set"
+    print(f"\nFixture           {report['fixture_name']} ({report['fixture_case_count']} cases, {kind})")
     print(f"Scorer config     {report['scorer_config_hash']}")
     print(f"\n  accuracy        {report['accuracy']:.4f}")
     print(f"  precision       {report['precision']:.4f}   (positive class: fail)")
@@ -72,9 +94,10 @@ def main() -> int:
         return 1
 
     if args.update_baseline:
-        baseline = {
-            "fixture": report["fixture_name"],
+        store = _load_baselines()
+        store["fixtures"][report["fixture_name"]] = {
             "fixture_version": report["fixture_version"],
+            "held_out": report["held_out"],
             "scorer_config_hash": report["scorer_config_hash"],
             "accuracy": report["accuracy"],
             "precision": report["precision"],
@@ -85,17 +108,17 @@ def main() -> int:
             "recorded_at": report["created_at"],
         }
         with open(BASELINE_PATH, "w") as f:
-            json.dump(baseline, f, indent=2)
+            json.dump(store, f, indent=2, sort_keys=True)
             f.write("\n")
-        print(f"\nBaseline updated: accuracy {report['accuracy']:.4f} -> {BASELINE_PATH}")
+        print(f"\nBaseline updated for {report['fixture_name']}: "
+              f"accuracy {report['accuracy']:.4f} -> {BASELINE_PATH}")
         return 0
 
-    if not os.path.exists(BASELINE_PATH):
-        print(f"\nNo baseline recorded. Run with --update-baseline to create {BASELINE_PATH}.")
+    baseline = _load_baselines()["fixtures"].get(report["fixture_name"])
+    if not baseline:
+        print(f"\nNo baseline recorded for {report['fixture_name']}. "
+              "Run with --update-baseline to create one.")
         return 1
-
-    with open(BASELINE_PATH) as f:
-        baseline = json.load(f)
 
     drop = baseline["accuracy"] - report["accuracy"]
     print(f"\nBaseline accuracy {baseline['accuracy']:.4f}  ->  current {report['accuracy']:.4f} "

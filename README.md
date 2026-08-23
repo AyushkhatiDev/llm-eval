@@ -15,14 +15,20 @@ how much damage each one does.
 
 ![Scorer validation — 90% agreement with human labels against 50% random baselines](docs/images/scorer-validation.png)
 
-| Method | Accuracy | Precision (fail) | Recall (fail) | F1 |
-| --- | ---: | ---: | ---: | ---: |
-| Random 50/50 baseline | 49.9% | — | — | — |
-| Label-prior baseline | 50.0% | — | — | — |
-| **This scorer (rules tier, offline)** | **90.0%** | **82.8%** | **100.0%** | **90.6%** |
+| Set | Cases | Accuracy | Precision (fail) | Recall (fail) | F1 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Random 50/50 baseline | — | 49.9% | — | — | — |
+| Label-prior baseline | — | 50.0% | — | — | — |
+| Development set — rules written against it | 50 | 90.0% | 82.8% | 100.0% | 90.6% |
+| **Held-out set — written after the rules were frozen** | 30 | **80.0%** | **71.4%** | **100.0%** | **83.3%** |
 
-50 labelled cases; baselines seeded (1337) over 1000 trials. Reproduce with
-`python scripts/validate_scorer.py`.
+**80% is the number I'd defend**, not 90. The 10-point gap is what tuning on the development set was
+worth, and it is measured rather than assumed. Baselines seeded (1337) over 1000 trials; reproduce
+both with `python scripts/validate_scorer.py` and `--held-out`.
+
+**Recall stays at 100% on cases the rules never saw.** The scorer loses precision out of sample, but
+it loses it in one direction: it still catches every fabrication, and the extra errors are false
+alarms on correct refusals. The safety property generalises; the precision does not.
 
 **New here? → [docs/GUIDE.md](docs/GUIDE.md)** is a hands-on walkthrough: a five-minute tour of the
 deployed demo, how to verify the 90% yourself with no API key, and how to run and test everything
@@ -33,6 +39,9 @@ locally.
 - **[The corrections](#corrections-to-earlier-published-numbers)** — this repository previously
   published 86% against a benchmark it never committed, and compared it to a label-prior baseline
   that was arithmetically wrong. Both were found by committing the fixture and recomputing.
+- **[The held-out result](#does-it-generalise)** — the rules were frozen, then 30 new cases were
+  written against them. Accuracy fell from 90% to 80%, and that gap is published rather than the
+  flattering number.
 - **[docs/BUGS_FOUND.md](docs/BUGS_FOUND.md)** — three defects found by running against a live
   model, including a `forbidden` pattern that scored a correct refusal as the exact failure it had
   just refused to commit.
@@ -74,6 +83,34 @@ confusion matrix lists those exact cases with the human label, the scorer's verd
 fired.
 
 ![Clickable confusion matrix showing the five false alarms with their tier traces](docs/images/confusion-matrix.png)
+
+### Does it generalise?
+
+The obvious objection to 90% is that the rules and the benchmark share an author. So the rules were
+frozen at commit `3cbcec1`, and 30 new cases were written against them afterwards — same five
+patterns, same labelling guide, disjoint cases. **No rule was added, removed or edited in response
+to the result.**
+
+| | Development set (50) | Held-out set (30) |
+| --- | ---: | ---: |
+| Accuracy | 90.0% | **80.0%** |
+| Precision (fail) | 82.8% | 71.4% |
+| **Recall (fail)** | **100.0%** | **100.0%** |
+| Pass recall | 80.8% | 60.0% |
+
+![Development set 90% versus held-out set 80%, with the 10-point generalisation gap](docs/images/held-out.png)
+
+Ten points of the development-set score was tuning. What survives is the property that matters: on
+cases the rules had never seen, the scorer still flagged **every** fabrication. All six held-out
+errors are false alarms on correct refusals.
+
+The held-out set also exposed a failure mode the development set never contained. Asked why the
+Republic of Genoa joined NATO, the model correctly answered that Genoa *"ceased to exist in 1797,
+well over a century before NATO was founded in 1949"* — and the scorer marked it as a fabrication,
+because citing concrete dates is what fabrication looks like to a rule. A correct refutation that
+supplies real facts is indistinguishable, to this tier, from an invented one. That is now a known,
+documented limitation rather than a silent error, and it is exactly the kind of thing a held-out set
+exists to find.
 
 ---
 
@@ -261,10 +298,11 @@ Stated plainly, because the whole thesis of the project is not trusting unvalida
 
 - **The fixture is small and self-authored.** 50 cases, written and labelled by one person. There is
   no inter-annotator agreement, because there is one annotator.
-- **There is no held-out split.** The rule patterns and the benchmark cases share an author, so 90%
-  is an upper bound on what the scorer would achieve on cases it was not designed against. It
-  establishes that the scorer beats chance; it does not establish general hallucination-detection
-  quality.
+- **The held-out set is held out from the rules, not from the author.** Both fixtures were written
+  and labelled by the same person. Freezing the rules first makes 80% a real generalisation
+  estimate rather than an upper bound, but a genuinely blind set needs a second annotator.
+- **30 held-out cases is small.** One case moves accuracy by 3.3 points, so treat the interval as
+  wide.
 - **The fixture's model outputs are representative examples**, hand-written to exhibit each failure
   mode, not captured production traces.
 - **The suite is 39 tests.** Enough to catch behavioral regressions, not enough to characterize a
@@ -290,13 +328,14 @@ caveats attached to it without leaving the page.
 Stating the distance between what is measured here and what would support a stronger claim, because
 knowing the gap is worth more than pretending it isn't there:
 
-1. **A second annotator** on the existing 50 cases, reported as a Cohen's κ. Without it, "agreement
-   with human labels" means agreement with *one* human.
-2. **A held-out split authored after the rules are frozen.** The one that matters most: it converts
-   the current upper bound into an estimate.
+1. ~~A held-out split authored after the rules are frozen.~~ **Done** — 30 cases, 80.0%, published
+   alongside the development number rather than instead of it.
+2. **A second annotator**, reported as a Cohen's κ. Now the largest remaining gap: both fixtures
+   share an author, so "agreement with human labels" still means agreement with *one* human.
 3. **A published dataset** (TruthfulQA, HaluEval) as an external comparison, so the scorer is
    measured against cases its author did not write.
-4. **Captured production traces** instead of hand-written outputs, and graded severity instead of
+4. **More held-out cases.** Thirty is enough to show a gap exists, not to size it precisely.
+5. **Captured production traces** instead of hand-written outputs, and graded severity instead of
    binary pass/fail.
 
 ---
@@ -335,8 +374,9 @@ error rather than scoring it as an empty answer.
 ## Tests and CI
 
 ```bash
-pytest -q                                  # 90 tests
-python scripts/validate_scorer.py          # scorer regression gate
+pytest -q                                  # 97 tests
+python scripts/validate_scorer.py          # gate: development set
+python scripts/validate_scorer.py --held-out   # gate: held-out set
 ```
 
 The test suite runs the real Alembic migrations against a temporary SQLite database, so a broken
@@ -345,10 +385,11 @@ escalation boundaries (including that a confident rule match never costs an API 
 matrix arithmetic against hand-computed values, the compare logic, the API contracts, and every bug
 in [docs/BUGS_FOUND.md](docs/BUGS_FOUND.md).
 
-GitHub Actions runs both on every push. **The scorer validation is a build gate**: if a change drops
-accuracy on the fixture by more than two points against the committed baseline
-(`backend/eval/fixtures/scorer_baseline.json`), CI fails. An eval tool with no regression gate on
-its own evaluator is asking for trust it has not earned.
+GitHub Actions runs all of it on every push. **The scorer validation is a build gate**: if a change
+drops accuracy on *either* fixture by more than two points against its committed baseline
+(`backend/eval/fixtures/scorer_baseline.json`), CI fails. Gating the held-out set as well as the
+development set is what stops the rules being quietly tuned back onto the benchmark. An eval tool
+with no regression gate on its own evaluator is asking for trust it has not earned.
 
 ---
 

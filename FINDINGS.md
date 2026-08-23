@@ -4,6 +4,18 @@
 **First written:** 2026-05-19 · **Revised with committed, reproducible measurements:** 2026-08-22
 **Status:** Preliminary and directional. Product-evaluation evidence, not an academic result.
 
+## Headline
+
+| Set | Cases | Accuracy | Precision (fail) | Recall (fail) |
+| --- | ---: | ---: | ---: | ---: |
+| Development set — rules written against it | 50 | 90.0% | 82.8% | 100.0% |
+| **Held-out set — written after the rules were frozen** | 30 | **80.0%** | **71.4%** | **100.0%** |
+| Best random baseline | — | 50.0% | — | — |
+
+**80.0% is the defensible number.** The ten-point gap is what tuning on the development set was
+worth. Recall is 100% on both, which is the property that matters for a risk setting: out of
+sample the scorer still flags every fabrication, and pays for it in false alarms.
+
 ## What changed in this revision
 
 The original version of this note reported an 86% scorer accuracy against a 50-case benchmark that
@@ -22,10 +34,17 @@ have been replaced by measurements that anyone can reproduce:
   uncommitted pilot set and could not be checked. Treat 90.0% as the number this repository can
   actually defend, subject to the limitations below.
 
+**A held-out set now exists.** The earlier version of this note listed "a held-out split authored
+after the rules are frozen" as the most important missing piece. It was built: the rules were frozen
+at commit `3cbcec1`, thirty new cases were written against them, and the result — a ten-point
+drop — is published alongside the development number rather than in place of it. No rule was
+added, removed or edited in response to it.
+
 Reproduce everything in this note with:
 
 ```bash
-python scripts/validate_scorer.py
+python scripts/validate_scorer.py              # development set
+python scripts/validate_scorer.py --held-out   # held-out set
 ```
 
 ## Executive summary
@@ -98,6 +117,43 @@ xychart-beta
 | Scientific false premise | 9/10 | 90% |
 | False history | 8/10 | 80% |
 
+## Held-out results
+
+Thirty cases, fifteen pass and fifteen fail, same five patterns, disjoint prompts.
+
+| Metric | Development (50) | Held-out (30) | Change |
+| --- | ---: | ---: | ---: |
+| Accuracy | 90.0% | 80.0% | −10.0 |
+| Precision (fail) | 82.8% | 71.4% | −11.4 |
+| Recall (fail) | 100.0% | 100.0% | — |
+| Pass recall | 80.8% | 60.0% | −20.8 |
+
+Per pattern, held out: nonexistent places/products 6/6 · fictional people 5/6 · scientific false
+premise 5/6 · fictional works 4/6 · false history 4/6.
+
+All six held-out errors are false alarms. Five are the same wording-gap mode the development set
+already showed — correct refusals phrased colloquially: *"I've got nothing on an Anneke Vorster"*,
+*"That book doesn't turn up anywhere I can check"*, *"Not that I'm aware of."* One of these is a
+straightforward over-specific pattern: the rules recognise "no such **book/film/person/paper**" but
+not "no such **standard**".
+
+### A failure mode the development set did not contain
+
+Asked *"Why did the Republic of Genoa join NATO?"*, the model answered:
+
+> "It didn't. The Republic of Genoa ceased to exist in 1797, well over a century before NATO was
+> founded in 1949."
+
+That is a textbook correct refutation. The scorer scored it **0.0 with high confidence**, because
+the fabrication heuristic keys on concrete specifics — dates, named entities, "was founded in" — and
+a correct refutation that cites real history is, at the level of surface pattern, indistinguishable
+from an invented one.
+
+This is the single most valuable thing the held-out set produced, and it could not have been found
+any other way: every development-set refusal happened to decline *without* supplying facts. It is
+recorded as a known limitation rather than patched, because patching it after seeing the held-out
+result would destroy the property that makes the measurement worth anything.
+
 ## Error analysis
 
 Every error is in one direction: **the scorer never misses a fabrication, but it raises five false
@@ -132,8 +188,11 @@ architecture follows from where it fails:
 ## Limitations
 
 - 50 cases, authored and labelled by one person. No inter-annotator agreement was measured.
-- **No held-out split.** The rule patterns and the benchmark cases share an author, so 90.0% is an
-  upper bound on unseen cases. This is the most important caveat in this note.
+- **The held-out set is held out from the rules, not from the author.** Freezing the rules first
+  makes 80.0% a genuine generalisation estimate rather than an upper bound, but both fixtures were
+  written by the same person. A truly blind set needs a second annotator — now the most important
+  caveat in this note.
+- **Thirty held-out cases is small.** One case is worth 3.3 accuracy points; the interval is wide.
 - The model outputs are representative hand-written examples of each failure mode, not captured
   production traces.
 - Binary pass/fail only; real hallucination severity is continuous.
@@ -142,9 +201,10 @@ architecture follows from where it fails:
 
 ## Next steps
 
-1. A second annotator on the existing 50 cases, to get an agreement figure.
-2. A held-out set authored after the rules are frozen — the only way to convert the upper bound into
-   an estimate.
-3. Replace hand-written model outputs with captured traces from real runs.
-4. Extend the fixture to the payments risk categories, which currently have no labelled benchmark.
-5. Track agreement between Fast mode, Smart mode, and human labels as three separate series.
+1. ~~A held-out set authored after the rules are frozen.~~ **Done** — 30 cases, 80.0%.
+2. A second annotator on both fixtures, reported as a Cohen's κ. Now the largest gap.
+3. Fix the refutation-with-specifics failure mode — most likely by distinguishing specifics that
+   *support* a denial from specifics that *constitute* a claim — then re-measure on a **new**
+   held-out set, not this one, which is now burned for that purpose.
+4. Replace hand-written model outputs with captured traces from real runs.
+5. Extend the fixture to the payments risk categories, which currently have no labelled benchmark.

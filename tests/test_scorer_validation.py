@@ -121,3 +121,72 @@ def test_fixture_listing_excludes_the_ci_baseline_file():
     names = list_fixtures()
     assert DEFAULT_FIXTURE in names
     assert "scorer_baseline" not in names
+
+
+# ── Held-out set ──────────────────────────────────────────────────────────
+# The development fixture and the rules share an author, so its accuracy is an
+# upper bound. These pin the properties that make the held-out set meaningful.
+
+from backend.eval.scorer_validation import HELDOUT_FIXTURE  # noqa: E402
+
+
+@pytest.fixture(scope="module")
+def heldout():
+    return load_fixture(HELDOUT_FIXTURE)
+
+
+@pytest.fixture(scope="module")
+def heldout_report():
+    return run_validation(config=OFFLINE, fixture_version=HELDOUT_FIXTURE, trials=200)
+
+
+def test_heldout_fixture_declares_itself_held_out(heldout):
+    assert heldout["held_out"] is True
+    assert heldout["rules_frozen_at"]["commit"], "must record when the rules were frozen"
+    assert heldout["limitations"]
+
+
+def test_heldout_cases_are_disjoint_from_the_development_set(heldout, fixture):
+    dev_ids = {c["id"] for c in fixture["cases"]}
+    held_ids = {c["id"] for c in heldout["cases"]}
+    assert dev_ids.isdisjoint(held_ids)
+
+    # Prompts must not be recycled either — a renamed duplicate is not held out.
+    dev_prompts = {c["prompt"].strip().lower() for c in fixture["cases"]}
+    held_prompts = {c["prompt"].strip().lower() for c in heldout["cases"]}
+    assert dev_prompts.isdisjoint(held_prompts)
+
+
+def test_heldout_uses_the_same_labelling_guide_and_patterns(heldout, fixture):
+    assert heldout["labelling_guide"] == fixture["labelling_guide"]
+    assert heldout["scorer_expected"] == fixture["scorer_expected"]
+    dev_categories = {c["category"] for c in fixture["cases"]}
+    held_categories = {c["category"] for c in heldout["cases"]}
+    assert held_categories == dev_categories, "a different taxonomy would not be comparable"
+
+
+def test_heldout_report_is_flagged_as_held_out(heldout_report):
+    assert heldout_report["held_out"] is True
+    assert heldout_report["rules_frozen_at"]["scorer_config_hash"]
+
+
+def test_heldout_still_beats_both_random_baselines(heldout_report):
+    assert heldout_report["accuracy"] > heldout_report["baseline_random"] + 0.15
+    assert heldout_report["accuracy"] > heldout_report["baseline_label_prior"] + 0.15
+
+
+def test_the_safety_property_survives_out_of_sample(heldout_report):
+    """
+    The finding worth protecting: accuracy drops out of sample, but recall does
+    not. If a change ever makes the scorer miss a fabrication on unseen cases,
+    that is a different and much worse tool, and this test should fail.
+    """
+    assert heldout_report["recall"] == 1.0
+    assert heldout_report["confusion_matrix"]["false_negative"] == 0
+
+
+def test_the_development_set_flatters_the_scorer(heldout_report, report):
+    """The gap is the point. If it vanishes, suspect the held-out set was leaked."""
+    assert report["accuracy"] > heldout_report["accuracy"], (
+        "no generalisation gap at all is suspicious, not reassuring"
+    )

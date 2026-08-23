@@ -498,6 +498,7 @@ def scorer_validate():
     """
     data = request.get_json() or {}
     overrides = data.get("scorer_config") or {}
+    fixture_name = data.get("fixture", DEFAULT_FIXTURE)
     valid_keys = set(ScorerConfig().to_dict())
     unknown = set(overrides) - valid_keys
     if unknown:
@@ -512,7 +513,7 @@ def scorer_validate():
     try:
         report = run_validation(
             config=config,
-            fixture_version=data.get("fixture", DEFAULT_FIXTURE),
+            fixture_version=fixture_name,
             seed=int(data.get("seed", DEFAULT_SEED)),
         )
     except FileNotFoundError as exc:
@@ -522,6 +523,7 @@ def scorer_validate():
         fixture_version=report["fixture_version"],
         fixture_name=report["fixture_name"],
         fixture_case_count=report["fixture_case_count"],
+        held_out=report["held_out"],
         scorer_config=report["scorer_config"],
         scorer_config_hash=report["scorer_config_hash"],
         accuracy=report["accuracy"],

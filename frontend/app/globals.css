@@ -2228,3 +2228,85 @@ textarea {
 .rigour-list strong {
   color: var(--text-primary);
 }
+
+/* ── Generalisation: development vs held-out ─────────────────────── */
+
+.generalisation-card {
+  border-color: rgba(0, 206, 201, 0.28);
+}
+
+.generalisation-grid {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr 1fr;
+  gap: 18px;
+  align-items: center;
+}
+
+.generalisation-figure {
+  padding: 18px;
+  border-radius: var(--radius-md);
+  background: var(--bg-glass);
+  border: 1px solid var(--bg-glass-border);
+}
+
+.generalisation-figure.primary {
+  border-color: rgba(0, 206, 201, 0.4);
+  background: var(--accent-secondary-glow);
+}
+
+.generalisation-figure.gap {
+  border-color: rgba(253, 203, 110, 0.3);
+}
+
+.generalisation-label {
+  display: block;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+.generalisation-figure strong {
+  display: block;
+  margin: 8px 0 6px;
+  font-size: 34px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.generalisation-figure small {
+  font-size: 11px;
+  line-height: 1.55;
+  color: var(--text-muted);
+}
+
+.generalisation-arrow {
+  font-size: 22px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.generalisation-note {
+  margin-top: 20px;
+  padding: 14px 18px;
+  border-radius: var(--radius-md);
+  border-left: 3px solid var(--accent-secondary);
+  background: var(--bg-glass);
+  font-size: 13px;
+  line-height: 1.75;
+  color: var(--text-secondary);
+}
+
+.generalisation-note strong {
+  color: var(--text-primary);
+}
+
+@media (max-width: 900px) {
+  .generalisation-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .generalisation-arrow {
+    display: none;
+  }
+}

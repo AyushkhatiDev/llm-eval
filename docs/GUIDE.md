@@ -100,13 +100,14 @@ failure modes are visible from the terminal.
 
 **Try breaking it.** Delete a pattern from `REFUSAL_PATTERNS` in
 [`backend/judge/rules_judge.py`](../backend/judge/rules_judge.py), re-run, and watch accuracy drop
-below the committed baseline and the script exit non-zero. That is the same gate CI runs on every
-push.
+below the committed baseline and the script exit non-zero. CI runs that gate on **both** fixtures on
+every push — gating the held-out set is what stops the rules being quietly tuned back onto the
+benchmark.
 
 ### Run the tests
 
 ```bash
-pytest -q          # 90 tests, ~1 second, no network
+pytest -q          # 97 tests, ~1 second, no network
 ```
 
 They run the real Alembic migrations against a temporary SQLite database, so a broken migration
@@ -117,6 +118,7 @@ fails here rather than on deploy. Worth reading rather than just running:
 | [`tests/test_rules_tier.py`](../tests/test_rules_tier.py) | Each rule tier in isolation — including that a correct refusal saying "do not approve the increase" is **not** scored as an approval |
 | [`tests/test_chain_escalation.py`](../tests/test_chain_escalation.py) | That a confident rule match never costs an API call, and an unconfident LLM judge never overrides the rules |
 | [`tests/test_metrics.py`](../tests/test_metrics.py) | Confusion-matrix arithmetic against hand-computed values |
+| [`tests/test_scorer_validation.py`](../tests/test_scorer_validation.py) | Fixture integrity, and that the held-out set stays disjoint from the development set |
 | [`tests/test_runner.py`](../tests/test_runner.py) | That a truncated model response is an error, not a wrong answer |
 | [`tests/test_compare.py`](../tests/test_compare.py) | Regression ordering and severity weighting |
 | [`tests/test_api.py`](../tests/test_api.py) | API contracts, including that deltas are never invented |
@@ -259,7 +261,7 @@ category and severity-weighted rollups.
 ```text
 backend/judge/          the staged scorer — start at chain.py
 backend/eval/
-  fixtures/             the 50 labelled cases, and the accuracy baseline CI gates on
+  fixtures/             50 development cases, 30 held-out cases, the CI baselines
   scorer_validation.py  the harness that measures the scorer
   test_suite.json       39 tests, including 12 payments-risk cases
 backend/api/stats.py    every number the dashboard renders

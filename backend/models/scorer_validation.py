@@ -19,6 +19,7 @@ class ScorerValidation(db.Model):
     fixture_version = db.Column(db.String(100), nullable=False)
     fixture_name = db.Column(db.String(200))
     fixture_case_count = db.Column(db.Integer, default=0)
+    held_out = db.Column(db.Boolean, default=False)
     scorer_config = db.Column(db.JSON)
     scorer_config_hash = db.Column(db.String(64))
 
@@ -51,6 +52,7 @@ class ScorerValidation(db.Model):
             "fixture_version": self.fixture_version,
             "fixture_name": self.fixture_name,
             "fixture_case_count": self.fixture_case_count,
+            "held_out": bool(self.held_out),
             "scorer_config": self.scorer_config,
             "scorer_config_hash": self.scorer_config_hash,
             "accuracy": self.accuracy,

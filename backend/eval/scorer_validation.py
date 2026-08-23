@@ -18,6 +18,7 @@ from backend.judge.chain import ScorerConfig, judge_output
 
 FIXTURE_DIR = os.path.join(os.path.dirname(__file__), "fixtures")
 DEFAULT_FIXTURE = "hallucination_benchmark_v1"
+HELDOUT_FIXTURE = "hallucination_heldout_v1"
 BASELINE_TRIALS = 1000
 DEFAULT_SEED = 1337
 
@@ -214,6 +215,10 @@ def run_validation(
         "fixture_version": fixture.get("version", fixture_version),
         "fixture_name": fixture_version,
         "fixture_case_count": len(cases),
+        # True when the fixture was authored after the rules were frozen, so its
+        # accuracy is a generalisation estimate rather than an upper bound.
+        "held_out": bool(fixture.get("held_out", False)),
+        "rules_frozen_at": fixture.get("rules_frozen_at"),
         "scorer_config": config.to_dict(),
         "scorer_config_hash": config.config_hash(),
         **scorer_metrics,

@@ -1,12 +1,28 @@
 {
-  "fixture": "hallucination_benchmark_v1",
-  "fixture_version": "v1",
-  "scorer_config_hash": "4645eba572a1",
-  "accuracy": 0.9,
-  "precision": 0.8276,
-  "recall": 1.0,
-  "f1": 0.9057,
-  "baseline_random": 0.4988,
-  "baseline_label_prior": 0.5003,
-  "recorded_at": "2026-08-22T06:23:50.327294+00:00"
+  "fixtures": {
+    "hallucination_benchmark_v1": {
+      "accuracy": 0.9,
+      "baseline_label_prior": 0.5003,
+      "baseline_random": 0.4988,
+      "f1": 0.9057,
+      "fixture_version": "v1",
+      "held_out": false,
+      "precision": 0.8276,
+      "recall": 1.0,
+      "recorded_at": "2026-08-23T16:58:58.763453+00:00",
+      "scorer_config_hash": "4645eba572a1"
+    },
+    "hallucination_heldout_v1": {
+      "accuracy": 0.8,
+      "baseline_label_prior": 0.4984,
+      "baseline_random": 0.4975,
+      "f1": 0.8333,
+      "fixture_version": "heldout-v1",
+      "held_out": true,
+      "precision": 0.7143,
+      "recall": 1.0,
+      "recorded_at": "2026-08-23T16:58:58.833362+00:00",
+      "scorer_config_hash": "4645eba572a1"
+    }
+  }
 }
