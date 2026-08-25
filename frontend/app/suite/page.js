@@ -115,12 +115,17 @@ export default function SuitePage() {
       setTotalTests(tests.length);
       saveSuiteState({ runId: run.id, totalTests: tests.length, results: [] });
 
+      // A reproduction replays the recorded scoring mode. Replaying with a
+      // different one is not a reproduction — and it used to produce a run
+      // carrying the source's label while escalating like Smart mode.
+      const effectiveMode = reproducePlan?.config?.judge_mode || judgeMode;
+
       const completed = [];
       for (const test of tests) {
         const expectedBehavior = {
           ...test.expected_behavior,
           severity: test.severity ?? 1.0,
-          skip_llm_judge: judgeMode === "fast",
+          skip_llm_judge: effectiveMode === "fast",
         };
         const result = await api.triggerEval({
           prompt: test.prompt,
@@ -148,7 +153,7 @@ export default function SuitePage() {
         saveSuiteState({ runId: run.id, totalTests: tests.length, results: completed });
 
         if (endpoint.toLowerCase().includes("groq") && completed.length < tests.length) {
-          await delay(judgeMode === "smart" ? 4500 : 2300);
+          await delay(effectiveMode === "smart" ? 4500 : 2300);
         }
       }
 
@@ -268,11 +273,16 @@ export default function SuitePage() {
                 className="form-select"
                 value={judgeMode}
                 onChange={(e) => setJudgeMode(e.target.value)}
-                disabled={running}
+                disabled={running || !!reproducePlan}
               >
                 <option value="fast">Fast — rules only, no judge calls</option>
                 <option value="smart">Smart — LLM judge when rules are unsure</option>
               </select>
+              {reproducePlan && (
+                <span className="form-hint">
+                  Locked to the recorded mode — changing it would not be a reproduction.
+                </span>
+              )}
             </div>
           </div>
           <button
